@@ -1,0 +1,1198 @@
+within Buildings.Electrical.AC.ThreePhasesBalanced.Loads.MotorDrive.Coupled;
+package Alpha
+  model Chiller "Motor coupled chiller"
+    extends Buildings.Fluid.Interfaces.PartialFourPortInterface(
+      m1_flow_nominal = QCon_flow_nominal/cp1_default/dTCon_nominal,
+      m2_flow_nominal = QEva_flow_nominal/cp2_default/dTEva_nominal);
+    extends Buildings.Electrical.Interfaces.PartialOnePort(
+      redeclare package PhaseSystem =
+          Buildings.Electrical.PhaseSystems.OnePhase,
+      redeclare replaceable Interfaces.Terminal_n terminal);
+
+    //Chiller parameters
+    parameter Modelica.Units.SI.HeatFlowRate QEva_flow_nominal(max=0) = -P_nominal * COP_nominal
+      "Nominal cooling heat flow rate (Negative)"
+      annotation (Dialog(group="Nominal condition"));
+    parameter Modelica.Units.SI.HeatFlowRate QCon_flow_nominal(min=0) = P_nominal - QEva_flow_nominal
+      "Nominal heating flow rate (Positive)"
+      annotation (Dialog(group="Nominal condition"));
+    parameter Modelica.Units.SI.TemperatureDifference dTEva_nominal(
+      final max=0)=-10 "Temperature difference evaporator outlet-inlet"
+      annotation (Dialog(group="Nominal condition"));
+    parameter Modelica.Units.SI.TemperatureDifference dTCon_nominal(
+      final min=0)=10 "Temperature difference condenser outlet-inlet"
+      annotation (Dialog(group="Nominal condition"));
+    parameter Modelica.Units.SI.Power P_nominal(min=0)
+      "Nominal compressor power (at y=1)"
+      annotation (Dialog(group="Nominal condition"));
+    parameter Modelica.Units.NonSI.AngularVelocity_rpm Nrpm_nominal=1500
+      "Nominal rotational speed of compressor"
+      annotation (Dialog(group="Nominal condition"));
+    parameter Modelica.Units.SI.Pressure dp1_nominal(displayUnit="Pa")
+      "Pressure difference over condenser"
+      annotation (Dialog(group="Nominal condition"));
+    parameter Modelica.Units.SI.Pressure dp2_nominal(displayUnit="Pa")
+      "Pressure difference over evaporator"
+      annotation (Dialog(group="Nominal condition"));
+
+    //Efficiency
+    parameter Boolean use_eta_Carnot_nominal = true
+      "Set to true to use Carnot effectiveness etaCarnot_nominal rather than COP_nominal"
+      annotation(Dialog(group="Efficiency"));
+    parameter Real etaCarnot_nominal(unit="1")=COP_nominal/(TUseAct_nominal/(
+      TCon_nominal + TAppCon_nominal - (TEva_nominal - TAppEva_nominal)))
+      "Carnot effectiveness (=COP/COP_Carnot) used if use_eta_Carnot_nominal = true"
+      annotation (Dialog(group="Efficiency", enable=use_eta_Carnot_nominal));
+    parameter Real COP_nominal(unit="1")=etaCarnot_nominal*TUseAct_nominal/(
+      TCon_nominal + TAppCon_nominal - (TEva_nominal - TAppEva_nominal))
+      "Coefficient of performance at TEva_nominal and TCon_nominal, used if use_eta_Carnot_nominal = false"
+      annotation (Dialog(group="Efficiency", enable=not use_eta_Carnot_nominal));
+    parameter Modelica.Units.SI.Temperature TCon_nominal=303.15
+      "Condenser temperature used to compute COP_nominal if use_eta_Carnot_nominal=false"
+      annotation (Dialog(group="Efficiency", enable=not use_eta_Carnot_nominal));
+    parameter Modelica.Units.SI.Temperature TEva_nominal=278.15
+      "Evaporator temperature used to compute COP_nominal if use_eta_Carnot_nominal=false"
+      annotation (Dialog(group="Efficiency", enable=not use_eta_Carnot_nominal));
+    parameter Real a[:] = {1}
+      "Coefficients for efficiency curve (need p(a=a, yPL=1)=1)"
+      annotation (Dialog(group="Efficiency"));
+    parameter Modelica.Units.SI.TemperatureDifference TAppCon_nominal(min=0) = if cp1_default < 1500 then 5 else 2
+      "Temperature difference between refrigerant and working fluid outlet in condenser"
+      annotation (Dialog(group="Efficiency"));
+    parameter Modelica.Units.SI.TemperatureDifference TAppEva_nominal(min=0) = if cp2_default < 1500 then 5 else 2
+      "Temperature difference between refrigerant and working fluid outlet in evaporator"
+      annotation (Dialog(group="Efficiency"));
+
+    //Motor parameters
+    parameter Integer pole=4 "Number of pole pairs";
+    parameter Modelica.Units.SI.Resistance R_s=0.641
+      "Electric resistance of stator";
+    parameter Modelica.Units.SI.Resistance R_r=0.332
+      "Electric resistance of rotor";
+    parameter Modelica.Units.SI.Reactance X_s=1.106
+      "Complex component of the impedance of stator";
+    parameter Modelica.Units.SI.Reactance X_r=0.464
+      "Complex component of the impedance of rotor";
+    parameter Modelica.Units.SI.Reactance X_m=26.3
+      "Complex component of the magnetizing reactance";
+    parameter Modelica.Units.SI.Inertia JLoad(min=0)=2 "Load inertia";
+    parameter Modelica.Units.SI.Inertia JMotor=2 "Motor inertia";
+
+    //Controller parameters
+    parameter Boolean have_controller = true
+      "Set to true for enableing PID control";
+    parameter Modelica.Blocks.Types.SimpleController
+    controllerType=Modelica.Blocks.Types.SimpleController.PI
+       "Type of controller"
+        annotation (Dialog(tab="Advanced",
+                           group="Controller",
+                           enable=have_controller));
+    parameter Real k(min=0) = 1
+       "Gain of controller"
+        annotation (Dialog(tab="Advanced",
+                           group="Controller",
+                           enable=have_controller));
+    parameter Modelica.Units.SI.Time Ti(min=Modelica.Constants.small)=0.5
+       "Time constant of Integrator block"
+        annotation (Dialog(tab="Advanced",
+                           group="Controller",
+                           enable=have_controller and
+    controllerType == Modelica.Blocks.Types.SimpleController.PI or
+    controllerType == Modelica.Blocks.Types.SimpleController.PID));
+    parameter Modelica.Units.SI.Time Td(min=0) = 0.1
+       "Time constant of Derivative block"
+        annotation (Dialog(tab="Advanced",
+                           group="Controller",
+                           enable=have_controller and
+    controllerType == Modelica.Blocks.Types.SimpleController.PD or
+    controllerType == Modelica.Blocks.Types.SimpleController.PID));
+    parameter Real yMax(start=1)=1
+      "Upper limit of output"
+       annotation (Dialog(tab="Advanced",
+                         group="Controller",
+                         enable=have_controller));
+    parameter Real yMin=0
+      "Lower limit of output"
+       annotation (Dialog(tab="Advanced",
+                         group="Controller",
+                         enable=have_controller));
+
+    Buildings.Electrical.AC.ThreePhasesBalanced.Loads.MotorDrive.ThermoFluid.Chiller mecChi(
+      redeclare final package Medium1 = Medium1,
+      redeclare final package Medium2 = Medium2,
+      final m1_flow_nominal=m1_flow_nominal,
+      final m2_flow_nominal=m2_flow_nominal,
+      final dTEva_nominal=dTEva_nominal,
+      final dTCon_nominal=dTCon_nominal,
+      final use_eta_Carnot_nominal=use_eta_Carnot_nominal,
+      final etaCarnot_nominal=etaCarnot_nominal,
+      final COP_nominal=COP_nominal,
+      final TCon_nominal=TCon_nominal,
+      final TEva_nominal=TEva_nominal,
+      final a=a,
+      final dp1_nominal=dp1_nominal,
+      final dp2_nominal=dp2_nominal,
+      final TAppCon_nominal=TAppCon_nominal,
+      final TAppEva_nominal=TAppEva_nominal,
+      final P_nominal=P_nominal,
+      final QEva_flow_nominal=QEva_flow_nominal,
+      final QCon_flow_nominal=QCon_flow_nominal,
+      final Nrpm_nominal=Nrpm_nominal)
+      "Chiller model with mechanical interface"
+      annotation (Placement(transformation(extent={{-10,-10},{10,10}})));
+    final Modelica.Blocks.Sources.RealExpression loaTor(y=mecChi.shaft.tau)
+      "Chiller torque block"
+      annotation (Placement(transformation(extent={{0,40},{-20,60}})));
+    Buildings.Electrical.AC.ThreePhasesBalanced.Loads.MotorDrive.InductionMotors.SquirrelCageDrive simMot(
+      final pole=pole,
+      final J=JMotor,
+      final R_s=R_s,
+      final R_r=R_r,
+      final X_s=X_s,
+      final X_r=X_r,
+      final X_m=X_m,
+      final controllerType=controllerType,
+      final k=k,
+      final Ti=Ti,
+      final Td=Td,
+      final yMax=yMax,
+      final yMin=yMin) "Motor model"
+      annotation (Placement(transformation(extent={{-40,70},{-20,90}})));
+
+    Modelica.Blocks.Interfaces.RealInput setPoi "Set point of control target"
+      annotation (Placement(transformation(
+          extent={{-10,-10},{10,10}},
+          rotation=0,
+          origin={-110,90}), iconTransformation(
+          extent={{-10,-10},{10,10}},
+          rotation=0,
+          origin={-110,90})));
+    Modelica.Blocks.Interfaces.RealInput meaPoi "Measured value of control target"
+      annotation (Placement(transformation(extent={{-120,20},{-100,40}}),
+      iconTransformation(extent={{-120,20},{-100,40}})));
+    Modelica.Blocks.Interfaces.RealOutput P(final quantity="Power",final unit="W")
+      "Real power"
+      annotation (Placement(transformation(extent={{100,20},{120,40}}),
+      iconTransformation(extent={{100,20}, {120,40}})));
+    Modelica.Blocks.Interfaces.RealOutput Q(final quantity="Power",final unit="var")
+      "Reactive power"
+      annotation (Placement(transformation(extent={{100,-40},{120,-20}}),
+      iconTransformation(extent={{100,-40}, {120,-20}})));
+
+  protected
+    constant Boolean COP_is_for_cooling = true
+      "Set to true if the specified COP is for cooling";
+
+    final parameter Modelica.Units.SI.Temperature TUseAct_nominal=
+      if COP_is_for_cooling
+        then TEva_nominal - TAppEva_nominal
+        else TCon_nominal + TAppCon_nominal
+      "Nominal evaporator temperature for chiller or condenser temperature for heat pump, 
+    taking into account pinch temperature between fluid and refrigerant";
+
+    final parameter Modelica.Units.SI.SpecificHeatCapacity cp1_default=
+      Medium1.specificHeatCapacityCp(Medium1.setState_pTX(
+        p = Medium1.p_default,
+        T = Medium1.T_default,
+        X = Medium1.X_default))
+      "Specific heat capacity of medium 1 at default medium state";
+
+    final parameter Modelica.Units.SI.SpecificHeatCapacity cp2_default=
+      Medium2.specificHeatCapacityCp(Medium2.setState_pTX(
+        p = Medium2.p_default,
+        T = Medium2.T_default,
+        X = Medium2.X_default))
+      "Specific heat capacity of medium 2 at default medium state";
+
+  equation
+    connect(port_a1, mecChi.port_a1) annotation (Line(points={{-100,60},{-70,60},
+            {-70,6},{-10,6}}, color={0,127,255}));
+    connect(port_b2, mecChi.port_b2) annotation (Line(points={{-100,-60},{-60,-60},
+            {-60,-6},{-10,-6}}, color={0,127,255}));
+    connect(mecChi.port_b1, port_b1) annotation (Line(points={{10,6},{60,6},{60,60},
+            {100,60}}, color={0,127,255}));
+    connect(mecChi.port_a2, port_a2) annotation (Line(points={{10,-6},{60,-6},
+            {60,-60},{100,-60}}, color={0,127,255}));
+    connect(simMot.shaft, mecChi.shaft) annotation (Line(points={{-20,80},{40,80},
+            {40,30},{0,30},{0,10}}, color={0,0,0}));
+    connect(setPoi, simMot.setPoi) annotation (Line(points={{-110,90},{-80,90},
+            {-80,88},{-42,88}}, color={0,0,127}));
+    connect(meaPoi, simMot.mea) annotation (Line(points={{-110,30},{-80,30},{-80,84},
+            {-42,84}}, color={0,0,127}));
+    connect(loaTor.y, simMot.tau_m) annotation (Line(points={{-21,50},{-60,50},
+            {-60,72},{-42,72}}, color={0,0,127}));
+    connect(simMot.P, P) annotation (Line(points={{-18,88},{80,88},{80,30},
+            {110,30}}, color={0,0,127}));
+    connect(simMot.Q, Q) annotation (Line(points={{-18,84},{76,84},{76,-30},{110,
+            -30}},      color={0,0,127}));
+    connect(simMot.terminal, terminal) annotation (Line(points={{-30,90},{-30,100},
+            {0,100}}, color={0,120,120}));
+    annotation (Icon(coordinateSystem(preserveAspectRatio=true,extent={{-100,-100},
+              {100,100}}), graphics={
+          Rectangle(
+            extent={{-70,80},{70,-80}},
+            lineColor={0,0,255},
+            pattern=LinePattern.None,
+            fillColor={95,95,95},
+            fillPattern=FillPattern.Solid),
+          Rectangle(
+            extent={{-56,68},{58,50}},
+            lineColor={0,0,0},
+            fillColor={255,255,255},
+            fillPattern=FillPattern.Solid),
+          Rectangle(
+            extent={{-56,-52},{58,-70}},
+            lineColor={0,0,0},
+            fillColor={255,255,255},
+            fillPattern=FillPattern.Solid),
+          Rectangle(
+            extent={{-103,64},{98,54}},
+            lineColor={0,0,255},
+            pattern=LinePattern.None,
+            fillColor={0,0,255},
+            fillPattern=FillPattern.Solid),
+          Rectangle(
+            extent={{-2,54},{98,64}},
+            lineColor={0,0,255},
+            pattern=LinePattern.None,
+            fillColor={255,0,0},
+            fillPattern=FillPattern.Solid),
+          Rectangle(
+            extent={{-101,-56},{100,-66}},
+            lineColor={0,0,255},
+            pattern=LinePattern.None,
+            fillColor={0,0,255},
+            fillPattern=FillPattern.Solid),
+          Rectangle(
+            extent={{-100,-66},{0,-56}},
+            lineColor={0,0,127},
+            pattern=LinePattern.None,
+            fillColor={0,0,127},
+            fillPattern=FillPattern.Solid),
+          Polygon(
+            points={{-42,0},{-52,-12},{-32,-12},{-42,0}},
+            lineColor={0,0,0},
+            smooth=Smooth.None,
+            fillColor={255,255,255},
+            fillPattern=FillPattern.Solid),
+          Polygon(
+            points={{-42,0},{-52,10},{-32,10},{-42,0}},
+            lineColor={0,0,0},
+            smooth=Smooth.None,
+            fillColor={255,255,255},
+            fillPattern=FillPattern.Solid),
+          Rectangle(
+            extent={{-44,50},{-40,10}},
+            lineColor={0,0,0},
+            fillColor={255,255,255},
+            fillPattern=FillPattern.Solid),
+          Rectangle(
+            extent={{-44,-12},{-40,-52}},
+            lineColor={0,0,0},
+            fillColor={255,255,255},
+            fillPattern=FillPattern.Solid),
+          Rectangle(
+            extent={{38,50},{42,-52}},
+            lineColor={0,0,0},
+            fillColor={255,255,255},
+            fillPattern=FillPattern.Solid),
+          Ellipse(
+            extent={{18,22},{62,-20}},
+            lineColor={0,0,0},
+            fillColor={255,255,255},
+            fillPattern=FillPattern.Solid),
+          Polygon(
+            points={{40,22},{22,-10},{58,-10},{40,22}},
+            lineColor={0,0,0},
+            smooth=Smooth.None,
+            fillColor={255,255,255},
+            fillPattern=FillPattern.Solid),
+          Line(points={{62,0},{80,0}}, color={0,0,255}),
+          Line(points={{80,30},{100,30}}, color={0,0,255}),
+          Line(points={{80,0},{80,30}}, color={0,0,255}),
+          Line(points={{80,-30},{100,-30}}, color={0,0,255}),
+          Line(points={{80,-30},{80,0}}, color={0,0,255})}),
+          defaultComponentName="chi",
+      Documentation(info="<html>
+<p>
+This is a model of a squirrel cage induction motor coupled chiller with 
+ideal speed control. The model has electrical interfaces and can be used for 
+simulating microgrids and discussing grid interactions.
+</p>
+</html>",   revisions="<html>
+<ul>
+<li>
+October 15, 2021, by Mingzhe Liu:<br/>
+First implementation.
+</li>
+</ul>
+</html>"));
+  end Chiller;
+
+  model HeatPump "Motor coupled heat pump"
+    extends Buildings.Fluid.Interfaces.PartialFourPortInterface(
+      m1_flow_nominal = QCon_flow_nominal/cp1_default/dTCon_nominal,
+      m2_flow_nominal = QEva_flow_nominal/cp2_default/dTEva_nominal);
+    extends Buildings.Electrical.Interfaces.PartialOnePort(
+      redeclare package PhaseSystem =
+          Buildings.Electrical.PhaseSystems.OnePhase,
+      redeclare replaceable Interfaces.Terminal_n terminal);
+
+    //Heat pump parameters
+    parameter Modelica.Units.SI.HeatFlowRate QEva_flow_nominal(max=0) = -P_nominal * COP_nominal
+      "Nominal cooling heat flow rate (Negative)"
+      annotation (Dialog(group="Nominal condition"));
+    parameter Modelica.Units.SI.HeatFlowRate QCon_flow_nominal(min=0) = P_nominal - QEva_flow_nominal
+      "Nominal heating flow rate (Positive)"
+      annotation (Dialog(group="Nominal condition"));
+    parameter Modelica.Units.SI.TemperatureDifference dTEva_nominal(
+      final max=0) = -10 "Temperature difference evaporator outlet-inlet"
+      annotation (Dialog(group="Nominal condition"));
+    parameter Modelica.Units.SI.TemperatureDifference dTCon_nominal(
+      final min=0) = 10 "Temperature difference condenser outlet-inlet"
+      annotation (Dialog(group="Nominal condition"));
+    parameter Modelica.Units.SI.Power P_nominal(min=0)
+      "Nominal compressor power (at y=1)"
+      annotation (Dialog(group="Nominal condition"));
+    parameter Modelica.Units.NonSI.AngularVelocity_rpm Nrpm_nominal=1500
+      "Nominal rotational speed of compressor"
+      annotation (Dialog(group="Nominal condition"));
+    parameter Modelica.Units.SI.Pressure dp1_nominal(displayUnit="Pa")
+      "Pressure difference over condenser"
+      annotation (Dialog(group="Nominal condition"));
+    parameter Modelica.Units.SI.Pressure dp2_nominal(displayUnit="Pa")
+      "Pressure difference over evaporator"
+      annotation (Dialog(group="Nominal condition"));
+
+    //Efficiency
+    parameter Boolean use_eta_Carnot_nominal = true
+      "Set to true to use Carnot effectiveness etaCarnot_nominal rather than COP_nominal"
+      annotation(Dialog(group="Efficiency"));
+    parameter Real etaCarnot_nominal(unit="1")=COP_nominal/(TUseAct_nominal/(
+      TCon_nominal + TAppCon_nominal - (TEva_nominal - TAppEva_nominal)))
+      "Carnot effectiveness (=COP/COP_Carnot) used if use_eta_Carnot_nominal = true"
+      annotation (Dialog(group="Efficiency", enable=use_eta_Carnot_nominal));
+    parameter Real COP_nominal(unit="1")=etaCarnot_nominal*TUseAct_nominal/(
+      TCon_nominal + TAppCon_nominal - (TEva_nominal - TAppEva_nominal))
+      "Coefficient of performance at TEva_nominal and TCon_nominal, used if use_eta_Carnot_nominal = false"
+      annotation (Dialog(group="Efficiency", enable=not use_eta_Carnot_nominal));
+    parameter Modelica.Units.SI.Temperature TCon_nominal=303.15
+      "Condenser temperature used to compute COP_nominal if use_eta_Carnot_nominal=false"
+      annotation (Dialog(group="Efficiency", enable=not use_eta_Carnot_nominal));
+    parameter Modelica.Units.SI.Temperature TEva_nominal=278.15
+      "Evaporator temperature used to compute COP_nominal if use_eta_Carnot_nominal=false"
+      annotation (Dialog(group="Efficiency", enable=not use_eta_Carnot_nominal));
+    parameter Real a[:] = {1}
+      "Coefficients for efficiency curve (need p(a=a, yPL=1)=1)"
+      annotation (Dialog(group="Efficiency"));
+    parameter Modelica.Units.SI.TemperatureDifference TAppCon_nominal(min=0) = if cp1_default < 1500 then 5 else 2
+      "Temperature difference between refrigerant and working fluid outlet in condenser"
+      annotation (Dialog(group="Efficiency"));
+    parameter Modelica.Units.SI.TemperatureDifference TAppEva_nominal(min=0) = if cp2_default < 1500 then 5 else 2
+      "Temperature difference between refrigerant and working fluid outlet in evaporator"
+      annotation (Dialog(group="Efficiency"));
+
+    //Motor parameters
+    parameter Integer pole=4 "Number of pole pairs";
+    parameter Modelica.Units.SI.Resistance R_s=0.641
+      "Electric resistance of stator";
+    parameter Modelica.Units.SI.Resistance R_r=0.332
+      "Electric resistance of rotor";
+    parameter Modelica.Units.SI.Reactance X_s=1.106
+      "Complex component of the impedance of stator";
+    parameter Modelica.Units.SI.Reactance X_r=0.464
+      "Complex component of the impedance of rotor";
+    parameter Modelica.Units.SI.Reactance X_m=26.3
+      "Complex component of the magnetizing reactance";
+    parameter Modelica.Units.SI.Inertia JLoad(min=0)=2 "Load inertia";
+    parameter Modelica.Units.SI.Inertia JMotor=2 "Motor inertia";
+
+    //Controller parameters
+    parameter Boolean have_controller = true
+      "Set to true for enableing PID control";
+    parameter Modelica.Blocks.Types.SimpleController
+    controllerType=Modelica.Blocks.Types.SimpleController.PI
+       "Type of controller"
+        annotation (Dialog(tab="Advanced",
+                           group="Controller",
+                           enable=have_controller));
+    parameter Real k(min=0) = 1
+       "Gain of controller"
+        annotation (Dialog(tab="Advanced",
+                           group="Controller",
+                           enable=have_controller));
+    parameter Modelica.Units.SI.Time Ti(min=Modelica.Constants.small)=0.5
+       "Time constant of Integrator block"
+        annotation (Dialog(tab="Advanced",
+                           group="Controller",
+                           enable=have_controller and
+    controllerType == Modelica.Blocks.Types.SimpleController.PI or
+    controllerType == Modelica.Blocks.Types.SimpleController.PID));
+    parameter Modelica.Units.SI.Time Td(min=0) = 0.1
+       "Time constant of Derivative block"
+        annotation (Dialog(tab="Advanced",
+                           group="Controller",
+                           enable=have_controller and
+    controllerType == Modelica.Blocks.Types.SimpleController.PD or
+    controllerType == Modelica.Blocks.Types.SimpleController.PID));
+    parameter Real yMax(start=1)=1
+      "Upper limit of output"
+       annotation (Dialog(tab="Advanced",
+                         group="Controller",
+                         enable=have_controller));
+    parameter Real yMin=0
+      "Lower limit of output"
+       annotation (Dialog(tab="Advanced",
+                         group="Controller",
+                         enable=have_controller));
+
+    final Modelica.Blocks.Sources.RealExpression loaTor(y=mecHea.shaft.tau)
+      "Heat pump torque block"
+      annotation (Placement(transformation(extent={{0,40},{-20,60}})));
+    Buildings.Electrical.AC.ThreePhasesBalanced.Loads.MotorDrive.ThermoFluid.HeatPump mecHea(
+      redeclare final package Medium1 = Medium1,
+      redeclare final package Medium2 = Medium2,
+      final m1_flow_nominal=m1_flow_nominal,
+      final m2_flow_nominal=m2_flow_nominal,
+      final QEva_flow_nominal=QEva_flow_nominal,
+      final QCon_flow_nominal=QCon_flow_nominal,
+      final dTEva_nominal=dTEva_nominal,
+      final dTCon_nominal=dTCon_nominal,
+      final P_nominal=P_nominal,
+      final Nrpm_nominal=Nrpm_nominal,
+      final use_eta_Carnot_nominal=use_eta_Carnot_nominal,
+      final etaCarnot_nominal=etaCarnot_nominal,
+      final a=a,
+      final dp1_nominal=dp1_nominal,
+      final dp2_nominal=dp2_nominal,
+      final TAppCon_nominal=TAppCon_nominal,
+      final TAppEva_nominal=TAppEva_nominal)
+      "Heat pump model with mechanical interface"
+      annotation (Placement(transformation(extent={{-10,-10},{10,10}})));
+    Modelica.Blocks.Interfaces.RealInput setPoi "Set point of control target"
+      annotation (Placement(transformation(
+          extent={{-10,-10},{10,10}},
+          rotation=0,
+          origin={-110,90}), iconTransformation(
+          extent={{-10,-10},{10,10}},
+          rotation=0,
+          origin={-110,90})));
+    Modelica.Blocks.Interfaces.RealInput meaPoi "Measured value of control target"
+      annotation (Placement(transformation(extent={{-120,20},{-100,40}}),
+          iconTransformation(extent={{-120,20},{-100,40}})));
+    Modelica.Blocks.Interfaces.RealOutput P(final quantity="Power", final unit="W")
+      "Real power"
+      annotation (Placement(transformation(extent={{100,20},{120,40}}),
+          iconTransformation(extent={{100,20},{120,40}})));
+    Modelica.Blocks.Interfaces.RealOutput Q(final quantity="Power", final unit="var")
+      "Reactive power"
+      annotation (Placement(transformation(extent={{100,-40},{120,-20}}),
+          iconTransformation(extent={{100,-40},{120,-20}})));
+
+    InductionMotors.SquirrelCageDrive motDri
+      annotation (Placement(transformation(extent={{-46,70},{-22,90}})));
+  protected
+    constant Boolean COP_is_for_cooling = false
+      "Set to true if the specified COP is for cooling";
+
+    final parameter Modelica.Units.SI.Temperature TUseAct_nominal=
+      if COP_is_for_cooling
+        then TEva_nominal - TAppEva_nominal
+        else TCon_nominal + TAppCon_nominal
+      "Nominal evaporator temperature for chiller or condenser temperature for heat pump, 
+    taking into account pinch temperature between fluid and refrigerant";
+
+    final parameter Modelica.Units.SI.SpecificHeatCapacity cp1_default=
+      Medium1.specificHeatCapacityCp(Medium1.setState_pTX(
+        p = Medium1.p_default,
+        T = Medium1.T_default,
+        X = Medium1.X_default))
+      "Specific heat capacity of medium 1 at default medium state";
+
+    final parameter Modelica.Units.SI.SpecificHeatCapacity cp2_default=
+      Medium2.specificHeatCapacityCp(Medium2.setState_pTX(
+        p = Medium2.p_default,
+        T = Medium2.T_default,
+        X = Medium2.X_default))
+      "Specific heat capacity of medium 2 at default medium state";
+
+  equation
+    connect(port_a1,mecHea. port_a1) annotation (Line(points={{-100,60},{-70,60},
+            {-70,6},{-10,6}}, color={0,127,255}));
+    connect(port_b2,mecHea. port_b2) annotation (Line(points={{-100,-60},{-60,-60},
+            {-60,-6},{-10,-6}}, color={0,127,255}));
+    connect(port_b1,mecHea. port_b1) annotation (Line(points={{100,60},{60,60},
+            {60,6},{10,6}}, color={0,127,255}));
+    connect(port_a2,mecHea. port_a2) annotation (Line(points={{100,-60},{60,-60},
+            {60,-6},{10,-6}}, color={0,127,255}));
+    connect(motDri.terminal, terminal) annotation (Line(points={{-34,90},{-34,92},
+            {-12,92},{-12,88},{0,88},{0,100}}, color={0,120,120}));
+    connect(motDri.setPoi, setPoi) annotation (Line(points={{-48.4,88},{-96,88},{
+            -96,90},{-110,90}},
+                            color={0,0,127}));
+    connect(meaPoi, motDri.mea) annotation (Line(points={{-110,30},{-96,30},{-96,
+            46},{-114,46},{-114,76},{-52,76},{-52,84},{-48.4,84}},
+                                                               color={0,0,127}));
+    connect(loaTor.y, motDri.tau_m) annotation (Line(points={{-21,50},{-48.4,50},
+            {-48.4,72}},color={0,0,127}));
+    connect(motDri.shaft, mecHea.shaft)
+      annotation (Line(points={{-22,80},{4,80},{4,10},{0,10}}, color={0,0,0}));
+    annotation (Icon(coordinateSystem(preserveAspectRatio=true,extent={{-100,-100},
+            {100,100}}), graphics={
+          Rectangle(
+            extent={{-70,80},{70,-80}},
+            lineColor={0,0,255},
+            pattern=LinePattern.None,
+            fillColor={95,95,95},
+            fillPattern=FillPattern.Solid),
+          Rectangle(
+            extent={{-56,68},{58,50}},
+            lineColor={0,0,0},
+            fillColor={255,255,255},
+            fillPattern=FillPattern.Solid),
+          Rectangle(
+            extent={{-56,-52},{58,-70}},
+            lineColor={0,0,0},
+            fillColor={255,255,255},
+            fillPattern=FillPattern.Solid),
+          Rectangle(
+            extent={{-103,64},{98,54}},
+            lineColor={0,0,255},
+            pattern=LinePattern.None,
+            fillColor={0,0,255},
+            fillPattern=FillPattern.Solid),
+          Rectangle(
+            extent={{-2,54},{98,64}},
+            lineColor={0,0,255},
+            pattern=LinePattern.None,
+            fillColor={255,0,0},
+            fillPattern=FillPattern.Solid),
+          Rectangle(
+            extent={{-101,-56},{100,-66}},
+            lineColor={0,0,255},
+            pattern=LinePattern.None,
+            fillColor={0,0,255},
+            fillPattern=FillPattern.Solid),
+          Rectangle(
+            extent={{-100,-66},{0,-56}},
+            lineColor={0,0,127},
+            pattern=LinePattern.None,
+            fillColor={0,0,127},
+            fillPattern=FillPattern.Solid),
+          Polygon(
+            points={{-42,0},{-52,-12},{-32,-12},{-42,0}},
+            lineColor={0,0,0},
+            smooth=Smooth.None,
+            fillColor={255,255,255},
+            fillPattern=FillPattern.Solid),
+          Polygon(
+            points={{-42,0},{-52,10},{-32,10},{-42,0}},
+            lineColor={0,0,0},
+            smooth=Smooth.None,
+            fillColor={255,255,255},
+            fillPattern=FillPattern.Solid),
+          Rectangle(
+            extent={{-44,50},{-40,10}},
+            lineColor={0,0,0},
+            fillColor={255,255,255},
+            fillPattern=FillPattern.Solid),
+          Rectangle(
+            extent={{-44,-12},{-40,-52}},
+            lineColor={0,0,0},
+            fillColor={255,255,255},
+            fillPattern=FillPattern.Solid),
+          Rectangle(
+            extent={{38,50},{42,-52}},
+            lineColor={0,0,0},
+            fillColor={255,255,255},
+            fillPattern=FillPattern.Solid),
+          Ellipse(
+            extent={{18,22},{62,-20}},
+            lineColor={0,0,0},
+            fillColor={255,255,255},
+            fillPattern=FillPattern.Solid),
+          Polygon(
+            points={{40,22},{22,-10},{58,-10},{40,22}},
+            lineColor={0,0,0},
+            smooth=Smooth.None,
+            fillColor={255,255,255},
+            fillPattern=FillPattern.Solid),
+          Line(points={{62,0},{80,0}}, color={0,0,255}),
+          Line(points={{80,30},{100,30}}, color={0,0,255}),
+          Line(points={{80,0},{80,30}}, color={0,0,255}),
+          Line(points={{80,-30},{100,-30}}, color={0,0,255}),
+          Line(points={{80,-30},{80,0}}, color={0,0,255})}),
+          defaultComponentName="hea",
+      Documentation(info="<html>
+<p>
+This is a model of a squirrel cage induction motor coupled heat pump with 
+ideal speed control. The model has electrical interfaces and can be used for 
+simulating microgrids and discussing grid interactions.
+</p>
+</html>",   revisions="<html>
+<ul>
+<li>
+October 15, 2021, by Mingzhe Liu:<br/>
+First implementation.
+</li>
+</ul>
+</html>"));
+  end HeatPump;
+
+  model Pump "Motor coupled chiller"
+    extends Buildings.Fluid.Interfaces.PartialTwoPort(
+      port_a(p(start=Medium.p_default)),
+      port_b(p(start=Medium.p_default)));
+    extends Buildings.Electrical.Interfaces.PartialOnePort(
+      redeclare package PhaseSystem =
+          Buildings.Electrical.PhaseSystems.OnePhase,
+      redeclare replaceable Interfaces.Terminal_n terminal);
+
+    parameter Boolean addPowerToMedium=true
+      "Set to false to avoid any power (e.g heat generated by the pump) being 
+    added to medium";
+    replaceable parameter Buildings.Fluid.Movers.Data.Generic per
+      constrainedby Buildings.Fluid.Movers.Data.Generic
+      "Record with performance data"
+       annotation (choicesAllMatching=true,Placement(transformation(
+       extent={{-80,-80},{-60,-60}})));
+
+    //Motor parameters
+    parameter Integer pole=4 "Number of pole pairs";
+    parameter Modelica.Units.SI.Resistance R_s=0.013
+      "Electric resistance of stator";
+    parameter Modelica.Units.SI.Resistance R_r=0.009
+      "Electric resistance of rotor";
+    parameter Modelica.Units.SI.Reactance X_s=0.14
+      "Complex component of the impedance of stator";
+    parameter Modelica.Units.SI.Reactance X_r=0.12
+      "Complex component of the impedance of rotor";
+    parameter Modelica.Units.SI.Reactance X_m=2.4
+      "Complex component of the magnetizing reactance";
+    parameter Modelica.Units.SI.Inertia JLoad(min=0)=2 "Pump inertia";
+    parameter Modelica.Units.SI.Inertia JMotor=2 "Motor inertia";
+
+    //Controller parameters
+    parameter Boolean have_controller = true
+      "Set to true for enableing PID control";
+    parameter Modelica.Blocks.Types.SimpleController
+      controllerType=Modelica.Blocks.Types.SimpleController.PI
+      "Type of controller"
+        annotation (Dialog(tab="Advanced",
+                           group="Controller",
+                           enable=have_controller));
+    parameter Real k(min=0) = 1
+       "Gain of controller"
+        annotation (Dialog(tab="Advanced",
+                           group="Controller",
+                           enable=have_controller));
+    parameter Modelica.Units.SI.Time Ti(min=Modelica.Constants.small)=0.5
+       "Time constant of Integrator block"
+        annotation (Dialog(tab="Advanced",
+                           group="Controller",
+                           enable=have_controller and
+      controllerType == Modelica.Blocks.Types.SimpleController.PI or
+      controllerType == Modelica.Blocks.Types.SimpleController.PID));
+    parameter Modelica.Units.SI.Time Td(min=0) = 0.1
+       "Time constant of Derivative block"
+        annotation (Dialog(tab="Advanced",
+                           group="Controller",
+                           enable=have_controller and
+      controllerType == Modelica.Blocks.Types.SimpleController.PD or
+      controllerType == Modelica.Blocks.Types.SimpleController.PID));
+    parameter Real yMax(start=1)=1
+      "Upper limit of output"
+       annotation (Dialog(tab="Advanced",
+                         group="Controller",
+                         enable=have_controller));
+    parameter Real yMin=0
+      "Lower limit of output"
+       annotation (Dialog(tab="Advanced",
+                         group="Controller",
+                         enable=have_controller));
+
+    final Modelica.Blocks.Sources.RealExpression loaTor(y=pum.shaft.tau)
+      "Pump torque block"
+      annotation (Placement(transformation(extent={{-20,20},{-40,40}})));
+    Buildings.Electrical.AC.ThreePhasesBalanced.Loads.MotorDrive.ThermoFluid.Pump pum(
+      redeclare final package Medium = Medium,
+      final addPowerToMedium=addPowerToMedium,
+      Nrpm_nominal=1500,
+      final per=per) "Mechanical pump with mechanical interface"
+      annotation (Placement(transformation(extent={{-10,-10},{10,10}})));
+    Buildings.Electrical.AC.ThreePhasesBalanced.Loads.MotorDrive.InductionMotors.SquirrelCageDrive simMot(
+      final pole=pole,
+      final J=JMotor,
+      final R_s=R_s,
+      final R_r=R_r,
+      final X_s=X_s,
+      final X_r=X_r,
+      final X_m=X_m,
+      final controllerType=controllerType,
+      final k=k,
+      final Ti=Ti,
+      final Td=Td,
+      final yMax=yMax,
+      final yMin=yMin) "Motor model"
+      annotation (Placement(transformation(extent={{-60,60},{-40,80}})));
+
+    Modelica.Blocks.Interfaces.RealInput setPoi "Set point of control target"
+      annotation (Placement(transformation(
+          extent={{-10,-10},{10,10}},
+          rotation=0,
+          origin={-110,80}), iconTransformation(
+          extent={{-10,-10},{10,10}},
+          rotation=0,
+          origin={-110,80})));
+    Modelica.Blocks.Interfaces.RealInput meaPoi "Measured value of control target"
+      annotation (Placement(transformation(extent={{-120,40},{-100,60}}),
+          iconTransformation(extent={{-120,30},{-100,50}})));
+    Modelica.Blocks.Interfaces.RealOutput P(final quantity="Power", final unit="W")
+      "Real power"
+      annotation (Placement(transformation(extent={{100,80},{120,100}}),
+          iconTransformation(extent={{100,80},{120,100}})));
+    Modelica.Blocks.Interfaces.RealOutput Q(final quantity="Power", final unit="var")
+      "Reactive power"
+      annotation (Placement(transformation(extent={{100,60},{120,80}}),
+          iconTransformation(extent={{100,60},{120,80}})));
+    Modelica.Thermal.HeatTransfer.Interfaces.HeatPort_a heatPort
+      "Heat dissipation to environment"
+      annotation (Placement(transformation(extent={{-10,-78},{10,-58}}),
+          iconTransformation(extent={{-10,-78},{10,-58}})));
+
+  equation
+
+    connect(port_a, pum.port_a) annotation (Line(points={{-100,0},{-10,0}},
+            color={0,127,255}));
+    connect(pum.port_b, port_b) annotation (Line(points={{10,0},{100,0}},
+            color={0,127,255}));
+    connect(simMot.shaft, pum.shaft) annotation (Line(points={{-40,70},{0,70},
+            {0,10}}, color={0,0,0}));
+    connect(simMot.P, P) annotation (Line(points={{-38,78},{80,78},{80,90},{110,
+            90}}, color={0,0,127}));
+    connect(simMot.Q, Q) annotation (Line(points={{-38,74},{80,74},{80,70},{110,
+            70}}, color={0,0,127}));
+    connect(setPoi, simMot.setPoi) annotation (Line(points={{-110,80},{-88,80},
+            {-88,78},{-62,78}}, color={0,0,127}));
+    connect(meaPoi, simMot.mea) annotation (Line(points={{-110,50},{-88,50},
+            {-88,74},{-62,74}}, color={0,0,127}));
+    connect(loaTor.y, simMot.tau_m) annotation (Line(points={{-41,30},{-80,30},
+            {-80,62},{-62,62}}, color={0,0,127}));
+    connect(simMot.terminal, terminal) annotation (Line(points={{-50,80},{-50,100},
+            {0,100}}, color={0,120,120}));
+    connect(pum.heatPort, heatPort) annotation (Line(points={{0,-6.8},{0,-20},
+            {0,-68},{0,-68}}, color={191,0,0}));
+    annotation (Icon(coordinateSystem(preserveAspectRatio=true,
+          extent={{-100,-100},{100,100}}), graphics={
+          Rectangle(
+            extent={{-100,16},{100,-16}},
+            lineColor={0,0,0},
+            fillColor={0,127,255},
+            fillPattern=FillPattern.HorizontalCylinder),
+          Rectangle(
+            visible=use_inputFilter,
+            extent={{-10,44},{10,100}},
+            lineColor={0,0,0},
+            fillColor={135,135,135},
+            fillPattern=FillPattern.Solid),
+          Ellipse(
+            extent={{-58,58},{58,-58}},
+            lineColor={0,0,0},
+            fillPattern=FillPattern.Sphere,
+            fillColor={0,100,199}),
+          Polygon(
+            points={{0,50},{0,-50},{54,0},{0,50}},
+            lineColor={0,0,0},
+            pattern=LinePattern.None,
+            fillPattern=FillPattern.HorizontalCylinder,
+            fillColor={255,255,255}),
+          Ellipse(
+            extent={{4,16},{36,-16}},
+            lineColor={0,0,0},
+            fillPattern=FillPattern.Sphere,
+            visible=energyDynamics <> Modelica.Fluid.Types.Dynamics.SteadyState,
+            fillColor={0,100,199}),
+          Line(
+            points={{10,90},{100,90}},
+            color={0,0,0},
+            smooth=Smooth.None),
+          Line(
+            points={{10,70},{100,70}},
+            color={0,0,0},
+            smooth=Smooth.None),
+          Text(extent={{66,104},{116,90}},
+            textColor={0,0,127},
+            textString="P"),
+          Text(extent={{66,84},{116,70}},
+            textColor={0,0,127},
+            textString="Q"),
+          Text(extent={{-140,108},{-90,94}},
+            textColor={0,0,127},
+            textString="set_point"),
+          Text(extent={{-140,72},{-60,44}},
+            textColor={0,0,127},
+            textString="measure_value")}),
+          defaultComponentName="pum",
+      Documentation(info="<html>
+<p>
+This is a model of a squirrel cage induction motor coupled chiller with ideal 
+speed control. The model has electrical interfaces and can be used for 
+simulating microgrids and discussing grid interactions.
+</p>
+</html>",   revisions="<html>
+<ul>
+<li>
+September 15, 2021, by Mingzhe Liu:<br/>
+Refactored implementation to add mechanical interface and integrate inertia.
+</li>
+<li>
+March 6, 2019, by Yangyang Fu:<br/>
+First implementation.
+</li>
+</ul>
+</html>"));
+  end Pump;
+
+  package Examples
+  extends Modelica.Icons.ExamplesPackage;
+    model Chiller
+      "This example shows how to use the motor coupled chiller model"
+      extends Modelica.Icons.Example;
+      package MediumW = Buildings.Media.Water "Medium model";
+
+      parameter Modelica.Units.SI.Power P_nominal=100E3
+        "Nominal compressor power (at y=1)";
+      parameter Modelica.Units.SI.TemperatureDifference dTEva_nominal=-10
+        "Temperature difference evaporator outlet-inlet";
+      parameter Modelica.Units.SI.TemperatureDifference dTCon_nominal=10
+        "Temperature difference condenser outlet-inlet";
+      parameter Real COP_nominal=3 "Chiller COP";
+      parameter Modelica.Units.SI.MassFlowRate m2_flow_nominal=-P_nominal*
+          COP_nominal/dTEva_nominal/4200
+        "Nominal mass flow rate at chilled water side";
+      parameter Modelica.Units.SI.MassFlowRate m1_flow_nominal=+m2_flow_nominal*(
+          COP_nominal + 1)/COP_nominal
+        "Nominal mass flow rate at condenser water wide";
+
+      Buildings.Fluid.Sources.MassFlowSource_T sou1(
+        redeclare package Medium = Buildings.Media.Water,
+        use_T_in=true,
+        m_flow=m1_flow_nominal,
+        T=298.15,
+        nPorts=1) "Water source 1"
+        annotation (Placement(transformation(extent={{-58,-6},{-38,14}})));
+      Modelica.Blocks.Sources.Ramp TCon_in(
+        height=10,
+        duration=60,
+        offset=273.15 + 20,
+        startTime=60) "Condenser inlet temperature"
+        annotation (Placement(transformation(extent={{-100,-6},{-80,14}})));
+      Buildings.Fluid.Sources.MassFlowSource_T sou2(
+        redeclare package Medium = Buildings.Media.Water,
+        use_T_in=true,
+        m_flow=m2_flow_nominal,
+        T=291.15,
+        nPorts=1) "Water source 2"
+        annotation (Placement(transformation(extent={{58,-40},{38,-20}})));
+      Buildings.Electrical.AC.ThreePhasesBalanced.Sources.Grid Sou(f=50, V=230*
+            1.414)
+        "Voltage source"
+        annotation (Placement(transformation(extent={{0,60},{20,80}})));
+      Buildings.Fluid.Sensors.TemperatureTwoPort senTem(redeclare package Medium =
+            Buildings.Media.Water,
+          m_flow_nominal=m2_flow_nominal) "Temperature sensor"
+        annotation (Placement(transformation(extent={{-42,-40},{-22,-20}})));
+      Modelica.Blocks.Sources.Step TSet(
+        height=5.56,
+        offset=273.15,
+        startTime=500) "Evaporator side leaving water temperature set point"
+        annotation (Placement(transformation(extent={{-60,60},{-40,80}})));
+      Buildings.Fluid.Sources.Boundary_pT sin2(redeclare package Medium =
+            Buildings.Media.Water, nPorts=1)
+                    "Water sink 2" annotation (Placement(transformation(
+          extent={{-80,-40},{-60,-20}})));
+      Buildings.Fluid.Sources.Boundary_pT sin1(redeclare package Medium =
+            Buildings.Media.Water, nPorts=1)
+                    "Water sink 1" annotation (Placement(transformation(
+          extent={{80,-8},{60,12}})));
+
+      Buildings.Electrical.AC.ThreePhasesBalanced.Loads.MotorDrive.Coupled.Alpha.Chiller
+        chi(
+        redeclare package Medium1 = Buildings.Media.Water,
+        redeclare package Medium2 = Buildings.Media.Water,
+        dTEva_nominal=dTEva_nominal,
+        dTCon_nominal=dTCon_nominal,
+        P_nominal=P_nominal,
+        Nrpm_nominal=1800,
+        dp1_nominal=6000,
+        dp2_nominal=6000,
+        use_eta_Carnot_nominal=true,
+        etaCarnot_nominal=0.3,
+        COP_nominal=3,
+        pole=4,
+        R_s=0.641,
+        R_r=0.332,
+        X_s=1.106,
+        X_r=0.464,
+        X_m=26.3,
+        JLoad=2,
+        JMotor=2)
+        annotation (Placement(transformation(extent={{-6,-12},{14,8}})));
+      Modelica.Blocks.Sources.Ramp TEva_in1(
+        height=10,
+        duration=60,
+        offset=273.15 + 15,
+        startTime=900)
+                      "Condenser inlet temperature"
+        annotation (Placement(transformation(extent={{96,-42},{76,-22}})));
+    equation
+      connect(TCon_in.y,sou1. T_in) annotation (Line(points={{-79,4},{-66,4},{-66,8},
+              {-60,8}},           color={0,0,127}, smooth=Smooth.None));
+      connect(chi.port_a2, sou2.ports[1]) annotation (Line(points={{14,-8},{28,-8},{
+              28,-30},{38,-30}},color={0,127,255}));
+      connect(TSet.y, chi.setPoi)
+        annotation (Line(points={{-39,70},{-7,70},{-7,7}}, color={0,0,127}));
+      connect(Sou.terminal, chi.terminal)
+        annotation (Line(points={{10,60},{8,60},{8,8},{4,8}}, color={0,120,120}));
+      connect(sou2.T_in, TEva_in1.y)
+        annotation (Line(points={{60,-26},{68,-26},{68,-32},{75,-32}},
+                                                   color={0,0,127}));
+      connect(senTem.T, chi.meaPoi) annotation (Line(points={{-32,-19},{-32,1},{-7,1}},
+                                       color={0,0,127}));
+      connect(senTem.port_a, sin2.ports[1])
+        annotation (Line(points={{-42,-30},{-60,-30}}, color={0,127,255}));
+      connect(senTem.port_b, chi.port_b2) annotation (Line(points={{-22,-30},{-12,-30},
+              {-12,-8},{-6,-8}}, color={0,127,255}));
+      connect(sin1.ports[1], chi.port_b1)
+        annotation (Line(points={{60,2},{58,2},{58,4},{14,4}}, color={0,127,255}));
+      connect(sou1.ports[1], chi.port_a1)
+        annotation (Line(points={{-38,4},{-6,4}}, color={0,127,255}));
+      annotation (experiment(Tolerance=1e-6, StopTime=3600),
+    __Dymola_Commands(file="modelica://Buildings/Resources/Scripts/Dymola/Electrical/AC/ThreePhasesBalanced/Loads/MotorDrive/Coupled/Examples/Chiller.mos"
+            "Simulate and plot"),
+        Documentation(info="<html>
+<p>
+Example that simulates a motor coupled chiller to track the set point signal 
+as the evaporator entering temperate changes.
+</p>
+</html>",     revisions="<html>
+<ul>
+<li>
+October 15, 2021, by Mingzhe Liu:<br/>
+First implementation. 
+</li>
+</ul>
+</html>"));
+    end Chiller;
+
+    model HeatPump
+      "This example shows how to use the motor coupled heat pump model"
+      extends Modelica.Icons.Example;
+      package MediumW = Buildings.Media.Water "Medium model";
+
+      parameter Modelica.Units.SI.Power P_nominal=10E3
+        "Nominal compressor power (at y=1)";
+      parameter Modelica.Units.SI.TemperatureDifference dTEva_nominal=-10
+        "Temperature difference evaporator outlet-inlet";
+      parameter Modelica.Units.SI.TemperatureDifference dTCon_nominal=10
+        "Temperature difference condenser outlet-inlet";
+      parameter Real COP_nominal=3 "Chiller COP";
+      parameter Modelica.Units.SI.MassFlowRate m2_flow_nominal=
+         -P_nominal*COP_nominal/dTEva_nominal/4200
+        "Nominal mass flow rate at chilled water side";
+      parameter Modelica.Units.SI.MassFlowRate m1_flow_nominal=
+        m2_flow_nominal*(COP_nominal+1)/COP_nominal
+        "Nominal mass flow rate at condenser water wide";
+
+      Buildings.Fluid.Sources.MassFlowSource_T sou1(
+        redeclare package Medium = MediumW,
+        use_T_in=true,
+        m_flow=m1_flow_nominal,
+        T=298.15,
+        nPorts=1) "Water source 1"
+        annotation (Placement(transformation(extent={{-60,20},{-40,40}})));
+      Modelica.Blocks.Sources.Ramp TCon_in(
+        height=0,
+        duration=60,
+        offset=273.15 + 20,
+        startTime=60) "Condenser inlet temperature"
+        annotation (Placement(transformation(extent={{-90,24},{-70,44}})));
+      Buildings.Fluid.Sources.MassFlowSource_T sou2(
+        redeclare package Medium = MediumW,
+        use_T_in=true,
+        m_flow=m2_flow_nominal,
+        T=291.15,
+        nPorts=1) "Water source 2"
+        annotation (Placement(transformation(extent={{60,-20},{40,0}})));
+      Buildings.Electrical.AC.ThreePhasesBalanced.Sources.Grid Sou(f=50, V=230*
+            1.414)
+        "Voltage source"
+        annotation (Placement(transformation(extent={{0,60},{20,80}})));
+      Buildings.Fluid.Sensors.TemperatureTwoPort senTem(redeclare package Medium = MediumW,
+        m_flow_nominal=m2_flow_nominal) "Temperature sensor"
+        annotation (Placement(transformation(extent={{40,20},{60,40}})));
+      Modelica.Blocks.Sources.Step TSet(
+        height=5,
+        offset=273.15 + 20,
+        startTime=500) "Condenser side leaving water temperature set point"
+        annotation (Placement(transformation(extent={{-60,60},{-40,80}})));
+      Buildings.Electrical.AC.ThreePhasesBalanced.Loads.MotorDrive.Coupled.Alpha.HeatPump
+        hea(
+        redeclare package Medium1 = MediumW,
+        redeclare package Medium2 = MediumW,
+        dTEva_nominal=dTEva_nominal,
+        dTCon_nominal=dTCon_nominal,
+        P_nominal=P_nominal,
+        Nrpm_nominal=1800,
+        etaCarnot_nominal=0.5,
+        dp1_nominal=1000,
+        dp2_nominal=1000,
+        pole=4,
+        JMotor=2,
+        R_s=1,
+        R_r=1.145,
+        X_s=0.1457,
+        X_r=0.1457,
+        X_m=0.1406,
+        JLoad=2) "Heat pump"
+        annotation (Placement(transformation(extent={{-10,-10},{10,10}})));
+      Modelica.Blocks.Sources.Ramp TEva_in(
+        height=0,
+        duration=60,
+        offset=273.15 + 15,
+        startTime=60) "Condenser inlet temperature"
+        annotation (Placement(transformation(extent={{90,-16},{70,4}})));
+      Buildings.Fluid.Sources.Boundary_pT sin2(redeclare package Medium = MediumW,
+        nPorts=1) "Water sink 2"
+        annotation (Placement(transformation(extent={{-60,-40},{-40,-20}})));
+      Buildings.Fluid.Sources.Boundary_pT sin1(redeclare package Medium = MediumW,
+        nPorts=1) "Water sink 1"
+        annotation (Placement(transformation(extent={{90,20},{70,40}})));
+
+    equation
+      connect(TCon_in.y,sou1. T_in) annotation (Line(points={{-69,34},{-62,34}},
+                                  color={0,0,127}, smooth=Smooth.None));
+      connect(hea.port_a2, sou2.ports[1]) annotation (Line(points={{10,-6},{20,-6},
+              {20,-10},{40,-10}}, color={0,127,255}));
+      connect(sou1.ports[1], hea.port_a1) annotation (Line(points={{-40,30},{-30,30},
+              {-30,6},{-10,6}}, color={0,127,255}));
+      connect(senTem.port_a, hea.port_b1) annotation (Line(points={{40,30},{20,30},
+              {20,6},{10,6}}, color={0,127,255}));
+      connect(Sou.terminal, hea.terminal) annotation (Line(points={{10,60},{10,32},
+              {0,32},{0,10}}, color={0,120,120}));
+      connect(TSet.y, hea.setPoi) annotation (Line(points={{-39,70},{-24,70},{-24,9},
+              {-11,9}}, color={0,0,127}));
+      connect(senTem.T, hea.meaPoi) annotation (Line(points={{50,41},{50,96},{-18,
+              96},{-18,3},{-11,3}},      color={0,0,127}));
+      connect(sou2.T_in, TEva_in.y) annotation (Line(points={{62,-6},{69,-6}},
+                                  color={0,0,127}));
+      connect(hea.port_b2, sin2.ports[1]) annotation (Line(points={{-10,-6},{-30,-6},
+              {-30,-30},{-40,-30}}, color={0,127,255}));
+      connect(senTem.port_b, sin1.ports[1]) annotation (Line(points={{60,30},{70,30}},
+                                color={0,127,255}));
+      annotation (experiment(Tolerance=1e-6, StopTime=3600),
+    __Dymola_Commands(file="modelica://Buildings/Resources/Scripts/Dymola/Electrical/AC/ThreePhasesBalanced/Loads/MotorDrive/Coupled/Examples/HeatPump.mos"
+            "Simulate and plot"),
+        Documentation(info="<html>
+<p>
+Example that simulates a motor coupled heat pump to track the set point signal 
+as the condenser entering temperate changes. 
+</p>
+</html>",     revisions="<html>
+<ul>
+<li>
+October 15, 2021, by Mingzhe Liu:<br/>
+First implementation. 
+</li>
+</ul>
+</html>"));
+    end HeatPump;
+
+    model Pump
+      "This example shows how to use the motor coupled pump model"
+      extends Modelica.Icons.Example;
+      package MediumW = Buildings.Media.Water;
+      parameter Modelica.Units.SI.MassFlowRate m_flow_nominal = 1 "Nominal mass flow rate";
+      parameter Modelica.Units.SI.Pressure dp_nominal=500   "nominal pressure drop";
+
+      Buildings.Fluid.Sources.Boundary_pT sou(redeclare package Medium = MediumW,
+        nPorts=1) "Boundary"
+        annotation (Placement(transformation(extent={{-10,-10},{10,10}}, rotation=0,
+          origin={-90,20})));
+      Buildings.Electrical.AC.ThreePhasesBalanced.Loads.MotorDrive.Coupled.Alpha.Pump
+        pum(
+        R_s=1,
+        R_r=1.145,
+        X_s=0.1457,
+        X_r=0.1457,
+        X_m=0.1406,
+        pum(pum(energyDynamics=Modelica.Fluid.Types.Dynamics.FixedInitial)),
+        redeclare package Medium = MediumW,
+        JMotor=0.17,
+        JLoad=0.17,
+        redeclare
+          Buildings.Fluid.Movers.Data.Pumps.Wilo.VeroLine50slash150dash4slash2
+          per,
+        k=0.1,
+        Ti=60) "Pump"
+        annotation (Placement(transformation(extent={{0,10},{20,30}})));
+
+      Buildings.Electrical.AC.ThreePhasesBalanced.Sources.Grid gri(f=50, V=230*
+            1.414)
+        "Voltage source"
+        annotation (Placement(transformation(extent={{0,60},{20,80}})));
+      Buildings.Fluid.Sensors.MassFlowRate senMasFlo(redeclare package Medium = MediumW)
+        "Flow rate sensor"
+        annotation (Placement(transformation(extent={{0,-50},{-20,-30}})));
+      Buildings.Fluid.FixedResistances.PressureDrop dp1(
+        redeclare package Medium = MediumW,
+        m_flow_nominal=m_flow_nominal,
+        dp_nominal=1/2*dp_nominal) "Pressure loss"
+        annotation (Placement(transformation(extent={{-40,10},{-20,30}})));
+      Buildings.Fluid.FixedResistances.PressureDrop dp2(
+        redeclare package Medium = MediumW,
+        m_flow_nominal=m_flow_nominal,
+        dp_nominal=1/2*dp_nominal) "Pressure loss"
+        annotation (Placement(transformation(extent={{40,10},{60,30}})));
+      Modelica.Blocks.Sources.Step step(
+        height=10,
+        offset=0,
+        startTime=500)  "Flow rate set point"
+        annotation (Placement(transformation(extent={{-80,60},{-60,80}})));
+
+    equation
+      connect(dp1.port_b, pum.port_a) annotation (Line(points={{-20,20},{0,20}},
+              color={0,127,255}));
+      connect(gri.terminal, pum.terminal) annotation (Line(points={{10,60},{10,30}},
+              color={0,120,120}));
+      connect(senMasFlo.m_flow, pum.meaPoi) annotation (Line(points={{-10,-29},{-10,24},
+              {-1,24}}, color={0,0,127}));
+      connect(dp1.port_a, senMasFlo.port_b) annotation (Line(points={{-40,20},{-60,20},
+              {-60,-40},{-20,-40}}, color={0,127,255}));
+      connect(pum.port_b, dp2.port_a) annotation (Line(points={{20,20},{40,20}},
+              color={0,127,255}));
+      connect(dp2.port_b, senMasFlo.port_a) annotation (Line(points={{60,20},{80,20},
+              {80,-40},{0,-40}}, color={0,127,255}));
+      connect(sou.ports[1], dp1.port_a) annotation (Line(points={{-80,20},{-40,20}},
+              color={0,127,255}));
+      connect(step.y, pum.setPoi) annotation (Line(points={{-59,70},{-20,70},
+              {-20,28},{-1,28}}, color={0,0,127}));
+      annotation (experiment(Tolerance=1e-6, StopTime=3600),
+    __Dymola_Commands(file="modelica://Buildings/Resources/Scripts/Dymola/Electrical/AC/ThreePhasesBalanced/Loads/MotorDrive/Coupled/Examples/Pump.mos"
+            "Simulate and plot"),
+        Documentation(info="<html>
+<p>
+Example that simulates a motor coupled pump to track the set point signal as 
+the load changes.
+</p>
+</html>",     revisions="<html>
+<ul>
+<li>
+October 15, 2021, by Mingzhe Liu:<br/>
+First implementation. 
+</li>
+</ul>
+</html>"));
+    end Pump;
+  end Examples;
+end Alpha;

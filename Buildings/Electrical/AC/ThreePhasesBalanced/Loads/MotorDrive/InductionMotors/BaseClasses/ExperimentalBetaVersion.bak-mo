@@ -1,0 +1,1320 @@
+within Buildings.Electrical.AC.ThreePhasesBalanced.Loads.MotorDrive.InductionMotors.BaseClasses;
+package ExperimentalBetaVersion
+  package InductionMotor
+    model SquirrelCageDriveBeta "Squirrel cage type induction motor with electrical interface and built-in speed control (Beta version)"
+      extends Buildings.Electrical.Interfaces.PartialOnePort(
+       redeclare package PhaseSystem =
+            Buildings.Electrical.PhaseSystems.OnePhase,
+       redeclare replaceable Interfaces.Terminal_n terminal);
+
+      parameter Integer P=4 "Number of pole pairs";
+      parameter Real J=0.0131;
+      parameter Real Lr=0.1780;
+      parameter Real Ls=0.1780;
+      parameter Real Rr=1.3950;
+      parameter Real Lm=0.1722;
+      parameter Real Rs=1.4050;
+      parameter Boolean have_controller = true
+        "Set to true for enableing PID control";
+      parameter Modelica.Blocks.Types.SimpleController
+      controllerType=Modelica.Blocks.Types.SimpleController.PI
+         "Type of controller"
+          annotation (Dialog(tab="Advanced",
+                             group="Controller",
+                             enable=have_controller));
+      parameter Real k(min=0) = 1
+         "Gain of controller"
+          annotation (Dialog(tab="Advanced",
+                             group="Controller",
+                             enable=have_controller));
+      parameter Modelica.Units.SI.Time Ti(min=Modelica.Constants.small)=0.5
+         "Time constant of Integrator block"
+          annotation (Dialog(tab="Advanced",
+                             group="Controller",
+                             enable=have_controller and
+      controllerType == Modelica.Blocks.Types.SimpleController.PI or
+      controllerType == Modelica.Blocks.Types.SimpleController.PID));
+      parameter Modelica.Units.SI.Time Td(min=0) = 0.1
+         "Time constant of Derivative block"
+          annotation (Dialog(tab="Advanced",
+                             group="Controller",
+                             enable=have_controller and
+      controllerType == Modelica.Blocks.Types.SimpleController.PD or
+      controllerType == Modelica.Blocks.Types.SimpleController.PID));
+      parameter Real yMax(start=1)=1
+        "Upper limit of output"
+         annotation (Dialog(tab="Advanced",
+                           group="Controller",
+                           enable=have_controller));
+      parameter Real yMin=0
+        "Lower limit of output"
+         annotation (Dialog(tab="Advanced",
+                           group="Controller",
+                           enable=have_controller));
+
+      Real v_rms "RMS voltage";
+      Modelica.Units.SI.Angle theta_s
+        "Supply voltage phase angel";
+      Modelica.Units.SI.AngularVelocity omega
+        "Supply voltage angular frequency";
+
+      Modelica.Units.SI.Voltage v[:] = terminal.v
+        "Voltage vector";
+      Modelica.Units.SI.Current i[:] = terminal.i
+        "Current vector";
+
+      final Modelica.Blocks.Sources.RealExpression Vrms(y=v_rms) "RMS voltage"
+        annotation (Placement(transformation(extent={{-80,40},{-60,60}})));
+      Buildings.Controls.Continuous.LimPID VFD(
+        final controllerType=controllerType,
+        final Td=Td,
+        final yMax=yMax,
+        final yMin=yMin,
+        final k=k,
+        final Ti=Ti,
+        final reverseActing=true) if have_controller
+        "PI controller as variable frequency drive"
+        annotation (Placement(transformation(extent={{-80,-10},{-60,10}})));
+      final Modelica.Blocks.Sources.RealExpression fre(y=omega/(2*Modelica.Constants.pi))
+        "Supply voltage frequency"
+        annotation (Placement(transformation(extent={{-80,-68},{-60,-48}})));
+      Modelica.Blocks.Math.Product VFDfre "Controlled frequency"
+        annotation (Placement(transformation(extent={{-40,-10},{-20,10}})));
+      final Modelica.Blocks.Sources.RealExpression NorCoe(y=1) if not have_controller
+        "Coefficient used in uncontrolled case"
+        annotation (Placement(transformation(extent={{-80,-48},{-60,-28}})));
+      Modelica.Blocks.Math.Product VFDvol "Controlled voltage"
+        annotation (Placement(transformation(extent={{-40,40},{-20,60}})));
+
+      Modelica.Blocks.Interfaces.RealInput setPoi if have_controller "Set point of control target"
+        annotation (Placement(transformation(
+            extent={{-20,-20},{20,20}},
+            rotation=0,
+            origin={-120,70}),
+            iconTransformation(
+            extent={{-20,-20},{20,20}},
+            rotation=0,
+            origin={-120,80})));
+      Modelica.Blocks.Interfaces.RealInput mea if have_controller "Measured value of control target"
+        annotation (Placement(transformation(
+            extent={{-20,-20},{20,20}},
+            rotation=0,
+            origin={-120,40}),
+            iconTransformation(
+            extent={{-20,-20},{20,20}},
+            rotation=0,
+            origin={-120,40})));
+      Modelica.Blocks.Interfaces.RealInput tau_m(unit="N.m")
+        "Load torque"
+        annotation (Placement(transformation(
+            extent={{-20,-20},{20,20}},
+            rotation=0,
+            origin={-120,-80}),
+            iconTransformation(
+            extent={{-20,-20},{20,20}},
+            rotation=0,
+            origin={-120,-80})));
+      Modelica.Blocks.Interfaces.RealOutput Pow(final quantity = "Power", final unit = "W")
+        "Real power"
+        annotation (Placement(transformation(extent={{100,60},{140,100}}),
+            iconTransformation(extent={{100,60},{140,100}})));
+      Modelica.Blocks.Interfaces.RealOutput Q(final quantity = "Power", final unit = "var")
+        "Reactive power"
+        annotation (Placement(transformation(extent={{100,20},{140,60}}),
+            iconTransformation(extent={{100,20},{140,60}})));
+
+
+      BaseClasses.CurrentBlock current_Block
+        annotation (Placement(transformation(extent={{60,30},{80,50}})));
+      BaseClasses.SpeedBlock speBlo(
+      final J=J,
+      final P=P)
+        annotation (Placement(transformation(extent={{-10,-66},{10,-44}})));
+      Modelica.Blocks.Continuous.Integrator integrator
+        annotation (Placement(transformation(extent={{-2,60},{18,80}})));
+      Modelica.Blocks.Sources.RealExpression i_ds(y=torSpe.motMod.i_ds)
+                                                                 annotation (
+          Placement(transformation(extent={{-10,-12},{10,12}}, origin={30,40})));
+      Modelica.Blocks.Sources.RealExpression i_qs(y=torSpe.motMod.i_qs)
+                                                                 annotation (
+          Placement(transformation(extent={{-10,-12},{10,12}}, origin={30,24})));
+      Modelica.Blocks.Sources.RealExpression eleTor(y=torSpe.tau_e)
+                                                                  annotation (
+          Placement(transformation(extent={{-10,-12},{10,12}}, origin={-30,-30})));
+      Modelica.Blocks.Sources.RealExpression angFre(y=VFD.y*omega)
+        "Supply voltage angular frequency" annotation (Placement(transformation(
+              extent={{10,-12},{-10,12}}, origin={4,-86})));
+      BaseClasses.MotorMachineInterfaceBeta torSpe(
+      final P=P,
+      final J=J,
+      final Lr=Lr,
+      final Ls=Ls,
+      final Rr=Rr,
+      final Lm=Lm,
+      final Rs=Rs)
+        annotation (Placement(transformation(extent={{-10,-10},{10,10}})));
+      Modelica.Mechanics.Rotational.Interfaces.Flange_b shaft
+        "Mechanical connector"
+        annotation (Placement(transformation(extent={{90,-10},{110,10}})));
+      Modelica.Mechanics.Rotational.Sources.Speed speed(exact=true)
+        "Speed connector"
+        annotation (Placement(transformation(extent={{64,-8},{80,8}})));
+      Modelica.Blocks.Sources.RealExpression angFre1(y=VFD.y*omega)
+        "Supply voltage angular frequency" annotation (Placement(transformation(
+              extent={{-10,-12},{10,12}}, origin={-70,80})));
+
+    equation
+      // Assign values for motor model calculation from electrical interface
+      theta_s = PhaseSystem.thetaRef(terminal.theta);
+      omega = der(theta_s);
+      v_rms=sqrt(v[1]^2+v[2]^2);
+      // Equations to calculate current
+      i[1] = torSpe.motMod.i_ds;
+      i[2] = torSpe.motMod.i_qs;
+      // Equations to calculate active power and reactive power
+      Pow = sqrt(3)*v_rms*torSpe.motMod.i_ds*cos(theta_s);
+      Q =sqrt(3)*v_rms*torSpe.motMod.i_ds*sin(theta_s);
+
+
+
+      connect(integrator.y,current_Block. wt) annotation (Line(points={{19,70},{50,70},
+              {50,48},{58,48}},        color={0,0,127}));
+      connect(i_ds.y, current_Block.i_ds) annotation (Line(points={{41,40},{58,40}},
+                            color={0,0,127}));
+      connect(i_qs.y, current_Block.i_qs)
+        annotation (Line(points={{41,24},{50,24},{50,32},{58,32}},
+                                                   color={0,0,127}));
+      connect(shaft, speed.flange)
+        annotation (Line(points={{100,0},{80,0}}, color={0,0,0}));
+      connect(VFD.u_s, setPoi) annotation (Line(points={{-82,0},{-90,0},{-90,70},{-120,
+              70}}, color={0,0,127}));
+      connect(VFD.u_m, mea) annotation (Line(points={{-70,-12},{-70,-18},{-94,-18},{
+              -94,40},{-120,40}}, color={0,0,127}));
+      connect(Vrms.y, VFDvol.u1) annotation (Line(points={{-59,50},{-48,50},{-48,56},
+              {-42,56}}, color={0,0,127}));
+      connect(VFD.y, VFDvol.u2) annotation (Line(points={{-59,0},{-48,0},{-48,44},{-42,
+              44}}, color={0,0,127}));
+      connect(VFDfre.u2, VFDvol.u2) annotation (Line(points={{-42,-6},{-48,-6},{-48,
+              44},{-42,44}}, color={0,0,127}));
+      connect(fre.y, VFDfre.u1) annotation (Line(points={{-59,-58},{-50,-58},{-50,6},
+              {-42,6}}, color={0,0,127}));
+      connect(NorCoe.y, VFDfre.u2) annotation (Line(points={{-59,-38},{-46,-38},{-46,
+              -6},{-42,-6}}, color={0,0,127}));
+      connect(torSpe.V_rms, VFDvol.y) annotation (Line(points={{-12,4},{-16,4},{-16,
+              50},{-19,50}}, color={0,0,127}));
+      connect(torSpe.f, VFDfre.y)
+        annotation (Line(points={{-12,0},{-19,0}}, color={0,0,127}));
+      connect(speed.w_ref, speBlo.omega_r) annotation (Line(points={{62.4,0},{40,0},
+              {40,-48},{11.9,-48},{11.9,-48.29}}, color={0,0,127}));
+      connect(speBlo.tau_e, eleTor.y) annotation (Line(points={{-12,-48.4},{-16,-48.4},
+              {-16,-30},{-19,-30}}, color={0,0,127}));
+      connect(speBlo.tau_m, tau_m) annotation (Line(points={{-12,-55},{-40,-55},{-40,
+              -80},{-120,-80}}, color={0,0,127}));
+      connect(torSpe.omega_r, speBlo.omega_r) annotation (Line(points={{-12,-4},{-16,
+              -4},{-16,-20},{20,-20},{20,-48.29},{11.9,-48.29}}, color={0,0,127}));
+      connect(angFre1.y, integrator.u) annotation (Line(points={{-59,80},{-12,
+              80},{-12,70},{-4,70}}, color={0,0,127}));
+      connect(speBlo.omega, angFre.y) annotation (Line(points={{-12,-61.6},{-12,
+              -60},{-18,-60},{-18,-86},{-7,-86}}, color={0,0,127}));
+     annotation(Icon(coordinateSystem(preserveAspectRatio=true,
+            extent={{-100,-100},{100,100}}), graphics={
+            Rectangle(
+              origin={0,0},
+              fillColor={255,0,0},
+              fillPattern=FillPattern.HorizontalCylinder,
+              extent={{-80,-60},{80,60}}),
+            Rectangle(
+              origin={0,0},
+              fillColor={128,128,128},
+              fillPattern=FillPattern.HorizontalCylinder,
+              extent={{-80,-60},{-60,60}}),
+            Rectangle(
+              origin={20,0},
+              fillColor={95,95,95},
+              fillPattern=FillPattern.HorizontalCylinder,
+              extent={{60,-10},{80,10}}),
+            Rectangle(
+              origin={0.626262,-10},
+              lineColor={95,95,95},
+              fillColor={95,95,95},
+              fillPattern=FillPattern.Solid,
+              extent={{-60.6263,50},{20.2087,70}}),
+            Polygon(
+              origin={2.835,0},
+              fillPattern=FillPattern.Solid,
+              points={{-70,-90},{-60,-90},{-30,-20},{20,-20},{50,-90},{60,-90},
+              {60,-100},{-70,-100},{-70,-90}}),
+            Text(
+              extent={{-82,162},{82,116}},
+              textColor={0,0,255},
+              fillColor={255,255,255},
+              fillPattern=FillPattern.None,
+              textString="%name")}),
+            defaultComponentName="motDri",
+        Documentation(info="<html>
+<p>
+This model implements an induction motor model with a built-in idealized 
+frequency control that tracks the set point and adjust the input frequency of 
+motor.
+</p>
+<p>
+The model is identical to 
+<a href=\"modelica://Buildings.Electrical.AC.ThreePhasesBalanced.Loads.MotorDrive.InductionMotors.SquirrelCage\">
+Buildings.Electrical.AC.ThreePhasesBalanced.Loads.MotorDrive.InductionMotors.
+SquirrelCage</a>, except that it takes the set point, as an input and adjust 
+the motor torque output to meet the set point. This set point is maintained 
+if the motor allows sufficient torque to meet the load requirement. The built-in 
+control is an ideal speed controller, implemented using a PI controller. 
+The controller adjusts the torque output of the motor to meet the set point 
+within its work area.
+</p>
+</html>",     revisions="<html>
+<ul>
+<li>
+September 25, 2023, by Zhanwei He:<br/>
+. 
+</li>
+<li>
+September 22, 2023, by Viswanathan Ganesh:<br/>
+First implementation.
+</li>
+</ul>
+</html>"));
+    end SquirrelCageDriveBeta;
+
+    model SquirrelCageBeta "Squirrel cage type induction motor with electrical interface (Beta version)"
+      extends Buildings.Electrical.Interfaces.PartialOnePort(
+       redeclare package PhaseSystem =
+            Buildings.Electrical.PhaseSystems.OnePhase,
+       redeclare replaceable Interfaces.Terminal_n terminal);
+
+      parameter Integer P=4 "Number of pole pairs";
+      parameter Real J=0.0131;
+      parameter Real Lr=0.1780;
+      parameter Real Ls=0.1780;
+      parameter Real Rr=1.3950;
+      parameter Real Lm=0.1722;
+      parameter Real Rs=1.4050;
+
+      Real v_rms "RMS voltage";
+      Modelica.Units.SI.Angle theta_s
+        "Supply voltage phase angel";
+      Modelica.Units.SI.AngularVelocity omega
+        "Supply voltage angular frequency";
+
+      Modelica.Units.SI.Voltage v[:] = terminal.v
+        "Voltage vector";
+      Modelica.Units.SI.Current i[:] = terminal.i
+        "Current vector";
+      final Modelica.Blocks.Sources.RealExpression Vrms(y=v_rms) "RMS voltage"
+        annotation (Placement(transformation(extent={{-60,10},{-40,30}})));
+      final Modelica.Blocks.Sources.RealExpression fre(y=omega/(2*Modelica.Constants.pi))
+        "Supply voltage frequency"
+        annotation (Placement(transformation(extent={{-60,-10},{-40,10}})));
+
+      Modelica.Blocks.Interfaces.RealInput tau_m(unit="N.m")
+        "Load torque"
+        annotation (Placement(transformation(
+            extent={{-20,-20},{20,20}},
+            rotation=0,
+            origin={-120,-80}),
+            iconTransformation(
+            extent={{-20,-20},{20,20}},
+            rotation=0,
+            origin={-120,-80})));
+
+      Modelica.Blocks.Interfaces.RealOutput Pow(final quantity = "Power", final unit = "W")
+        "Real power"
+        annotation (Placement(transformation(extent={{100,60},{140,100}}),
+            iconTransformation(extent={{100,60},{140,100}})));
+      Modelica.Blocks.Interfaces.RealOutput Q(final quantity = "Power", final unit = "var")
+        "Reactive power"
+        annotation (Placement(transformation(extent={{100,20},{140,60}}),
+            iconTransformation(extent={{100,20},{140,60}})));
+
+      BaseClasses.CurrentBlock current_Block
+        annotation (Placement(transformation(extent={{60,30},{80,50}})));
+      BaseClasses.SpeedBlock speBlo(
+      final J=J,
+      final P=P)
+        annotation (Placement(transformation(extent={{-10,-66},{10,-44}})));
+      Modelica.Blocks.Continuous.Integrator integrator
+        annotation (Placement(transformation(extent={{-2,60},{18,80}})));
+      Modelica.Blocks.Sources.RealExpression i_ds(y=torSpe.motMod.i_ds)
+        annotation (
+          Placement(transformation(extent={{-10,-12},{10,12}}, origin={30,40})));
+      Modelica.Blocks.Sources.RealExpression i_qs(y=torSpe.motMod.i_qs)
+        annotation (
+          Placement(transformation(extent={{-10,-12},{10,12}}, origin={30,24})));
+      Modelica.Blocks.Sources.RealExpression eleTor(y=torSpe.tau_e)
+        annotation (
+          Placement(transformation(extent={{-10,-12},{10,12}}, origin={-30,-30})));
+      Modelica.Blocks.Sources.RealExpression angFre(y=omega)
+        "Supply voltage angular frequency" annotation (Placement(transformation(
+              extent={{-10,-12},{10,12}}, origin={-30,-90})));
+      BaseClasses.MotorMachineInterfaceBeta torSpe(
+      final P=P,
+      final Lm=Lm,
+      final J=J,
+      final Lr=Lr,
+      final Ls=Ls,
+      final Rr=Rr,
+      final Rs=Rs)
+        annotation (Placement(transformation(extent={{-10,-10},{10,10}})));
+      Modelica.Blocks.Sources.RealExpression angFre1(y=omega)
+        "Supply voltage angular frequency" annotation (Placement(transformation(
+              extent={{-10,-12},{10,12}}, origin={-30,70})));
+      Modelica.Mechanics.Rotational.Sources.Speed speed(exact=true)
+        "Speed connector"
+        annotation (Placement(transformation(extent={{64,-8},{80,8}})));
+      Modelica.Mechanics.Rotational.Interfaces.Flange_b shaft
+        "Mechanical connector"
+        annotation (Placement(transformation(extent={{90,-10},{110,10}})));
+
+
+    equation
+      // Assign values for motor model calculation from electrical interface
+      theta_s = PhaseSystem.thetaRef(terminal.theta) "phase angle";
+      omega = der(theta_s);
+      v_rms=sqrt(v[1]^2+v[2]^2);
+
+      // Equations to calculate current
+      i[1] = torSpe.motMod.i_ds;
+      i[2] = torSpe.motMod.i_qs;
+      // Equations to calculate active power and reactive power
+      Pow = sqrt(3)*v_rms*torSpe.motMod.i_ds*cos(theta_s);
+      Q = sqrt(3)*v_rms*torSpe.motMod.i_ds*sin(theta_s);
+
+
+      connect(integrator.y,current_Block. wt) annotation (Line(points={{19,70},{50,70},
+              {50,48},{58,48}},        color={0,0,127}));
+      connect(i_ds.y, current_Block.i_ds) annotation (Line(points={{41,40},{58,40}},
+                            color={0,0,127}));
+      connect(i_qs.y, current_Block.i_qs)
+        annotation (Line(points={{41,24},{50,24},{50,32},{58,32}},
+                                                   color={0,0,127}));
+      connect(integrator.u, angFre1.y) annotation (Line(points={{-4,70},{-19,70}},
+                             color={0,0,127}));
+      connect(speBlo.tau_e, eleTor.y) annotation (Line(points={{-12,-48.4},{-16,-48.4},
+              {-16,-30},{-19,-30}}, color={0,0,127}));
+      connect(speBlo.tau_m, tau_m) annotation (Line(points={{-12,-55},{-60,-55},{-60,
+              -80},{-120,-80}}, color={0,0,127}));
+      connect(speBlo.omega, angFre.y) annotation (Line(points={{-12,-61.6},{-12,-62},
+              {-16,-62},{-16,-90},{-19,-90}}, color={0,0,127}));
+      connect(torSpe.omega_r, speBlo.omega_r) annotation (Line(points={{-12,-4},{-18,
+              -4},{-18,-20},{18,-20},{18,-48.29},{11.9,-48.29}}, color={0,0,127}));
+      connect(fre.y, torSpe.f)
+        annotation (Line(points={{-39,0},{-12,0}}, color={0,0,127}));
+      connect(Vrms.y, torSpe.V_rms) annotation (Line(points={{-39,20},{-18,20},{-18,
+              4},{-12,4}}, color={0,0,127}));
+      connect(speed.flange, shaft)
+        annotation (Line(points={{80,0},{100,0}}, color={0,0,0}));
+      connect(speed.w_ref, speBlo.omega_r) annotation (Line(points={{62.4,0},{40,0},
+              {40,-48},{26,-48},{26,-48.29},{11.9,-48.29}}, color={0,0,127}));
+     annotation(Icon(coordinateSystem(preserveAspectRatio=true,
+            extent={{-100,-100},{100,100}}), graphics={
+            Rectangle(
+              origin={0,0},
+              fillColor={255,0,0},
+              fillPattern=FillPattern.HorizontalCylinder,
+              extent={{-80,-60},{80,60}}),
+            Rectangle(
+              origin={0,0},
+              fillColor={128,128,128},
+              fillPattern=FillPattern.HorizontalCylinder,
+              extent={{-80,-60},{-60,60}}),
+            Rectangle(
+              origin={20,0},
+              fillColor={95,95,95},
+              fillPattern=FillPattern.HorizontalCylinder,
+              extent={{60,-10},{80,10}}),
+            Rectangle(
+              origin={0.626262,-10},
+              lineColor={95,95,95},
+              fillColor={95,95,95},
+              fillPattern=FillPattern.Solid,
+              extent={{-60.6263,50},{20.2087,70}}),
+            Polygon(
+              origin={2.835,0},
+              fillPattern=FillPattern.Solid,
+              points={{-70,-90},{-60,-90},{-30,-20},{20,-20},{50,-90},{60,-90},
+              {60,-100},{-70,-100},{-70,-90}}),
+            Text(
+              extent={{-82,162},{82,116}},
+              textColor={0,0,255},
+              fillColor={255,255,255},
+              fillPattern=FillPattern.None,
+              textString="%name")}),
+            defaultComponentName="motDri",
+        Documentation(info="<html>
+<p>
+This model implements an induction motor model with a built-in idealized 
+frequency control that tracks the set point and adjust the input frequency of 
+motor.
+</p>
+<p>
+The model is identical to 
+<a href=\"modelica://Buildings.Electrical.AC.ThreePhasesBalanced.Loads.MotorDrive.InductionMotors.SquirrelCage\">
+Buildings.Electrical.AC.ThreePhasesBalanced.Loads.MotorDrive.InductionMotors.
+SquirrelCage</a>, except that it takes the set point, as an input and adjust 
+the motor torque output to meet the set point. This set point is maintained 
+if the motor allows sufficient torque to meet the load requirement. The built-in 
+control is an ideal speed controller, implemented using a PI controller. 
+The controller adjusts the torque output of the motor to meet the set point 
+within its work area.
+</p>
+</html>",     revisions="<html>
+<ul>
+<li>
+September 25, 2023, by Zhanwei He:<br/>
+. 
+</li>
+<li>
+September 22, 2023, by Viswanathan Ganesh:<br/>
+First implementation.
+</li>
+</ul>
+</html>"));
+    end SquirrelCageBeta;
+
+    package Examples
+      model TestingModel
+         extends Buildings.Electrical.Interfaces.PartialOnePort(
+          redeclare package PhaseSystem =
+              Buildings.Electrical.PhaseSystems.OnePhase,
+          redeclare replaceable Interfaces.Terminal_n terminal);
+
+        extends Modelica.Icons.Example;
+        parameter Integer P=4 "Number of pole pairs";
+        parameter Real L_m=0.5;
+        parameter Real J=0.0131;
+        parameter Real Lr=0.1780;
+        parameter Real Rr=1.3950;
+        parameter Real Lm=0.1722;
+        parameter Real Rs=1.4050;
+
+        Real v_rms "RMS voltage";
+        Modelica.Units.SI.Angle theta_s
+          "Supply voltage phase angel";
+        Modelica.Units.SI.AngularVelocity omega
+          "Supply voltage angular frequency";
+
+        Modelica.Units.SI.Voltage v[:] = terminal.v
+          "Voltage vector";
+
+        BaseClasses.MotorModel motMod(
+          Lr=0.1780,
+          Rr=1.3950,
+          Lm=0.1722,
+          Rs=1.4050) annotation (Placement(transformation(extent={{28,-10},{48,14}})));
+        BaseClasses.CurrentBlock current_Block
+          annotation (Placement(transformation(extent={{68,32},{88,52}})));
+        BaseClasses.TorqueBlock torBlo(
+          P=4,
+          L_m=0.1722,
+          J=0.0131) annotation (Placement(transformation(extent={{68,-8},{88,12}})));
+        BaseClasses.SpeedBlock speBlo(J=0.0131, P=4)
+          annotation (Placement(transformation(extent={{-8,-74},{12,-52}})));
+        Modelica.Blocks.Continuous.Integrator integrator
+          annotation (Placement(transformation(extent={{-16,64},{4,84}})));
+        Modelica.Blocks.Sources.RealExpression i_ds(y=motMod.i_ds) annotation (
+            Placement(transformation(extent={{-10,-12},{10,12}}, origin={0,50})));
+        Modelica.Blocks.Sources.RealExpression i_qs(y=motMod.i_qs) annotation (
+            Placement(transformation(extent={{-10,-12},{10,12}}, origin={38,34})));
+        Modelica.Blocks.Sources.RealExpression eleTor(y=torBlo.tau_e)
+                                                                    annotation (
+            Placement(transformation(extent={{-10,-12},{10,12}}, origin={-38,-44})));
+        Modelica.Blocks.Sources.RealExpression eleFre_1(y=omega)      annotation (
+            Placement(transformation(extent={{-10,-12},{10,12}}, origin={-36,-90})));
+        Modelica.Blocks.Sources.RealExpression eleFre_2(y=omega)      annotation (
+            Placement(transformation(extent={{-10,-12},{10,12}}, origin={-52,76})));
+        BaseClasses.VoltageConversion voltageConversion
+          annotation (Placement(transformation(extent={{-40,4},{-20,24}})));
+        BaseClasses.FrequencyConversion frequencyConversion
+          annotation (Placement(transformation(extent={{-38,-28},{-18,-8}})));
+        Modelica.Blocks.Sources.RealExpression LoaTor(y=26.5) "Load torque"
+          annotation (Placement(transformation(extent={{-80,-74},{-60,-54}})));
+        final Modelica.Blocks.Sources.RealExpression Vrms(y=v_rms) "RMS voltage"
+          annotation (Placement(transformation(extent={{-80,38},{-60,58}})));
+        final Modelica.Blocks.Sources.RealExpression fre(y=omega/(2*Modelica.Constants.pi))
+          "Supply voltage frequency"
+          annotation (Placement(transformation(extent={{-80,18},{-60,38}})));
+      equation
+         // Assign values for motor model calculation from electrical interface
+        theta_s = PhaseSystem.thetaRef(terminal.theta);
+        omega = der(theta_s);
+        v_rms=sqrt(v[1]^2+v[2]^2);
+        connect(motMod.i_qr,torBlo. i_qr) annotation (Line(points={{49.4286,
+                -1.42857},{57.714,-1.42857},{57.714,-2},{66,-2}},
+                                                      color={0,0,127}));
+        connect(motMod.i_dr,torBlo. i_dr) annotation (Line(points={{49.4286,
+                -4.85714},{49.4286,-6},{66,-6}},
+                                    color={0,0,127}));
+        connect(integrator.y,current_Block. wt) annotation (Line(points={{5,74},{
+                52,74},{52,50},{66,50}}, color={0,0,127}));
+        connect(i_ds.y,current_Block. i_ds) annotation (Line(points={{11,50},{42,
+                50},{42,42},{66,42}},
+                              color={0,0,127}));
+        connect(i_qs.y,current_Block. i_qs)
+          annotation (Line(points={{49,34},{66,34}}, color={0,0,127}));
+        connect(motMod.i_ds,torBlo. i_ds) annotation (Line(points={{49.4286,
+                5.42857},{57.714,5.42857},{57.714,6},{66,6}},
+                                                        color={0,0,127}));
+        connect(eleFre_2.y,integrator. u) annotation (Line(points={{-41,76},{
+                -28,76},{-28,74},{-18,74}},
+                                   color={0,0,127}));
+        connect(motMod.i_qs, torBlo.i_qs) annotation (Line(points={{49.4286,
+                8.85714},{49.4286,9.8},{66,9.8}},
+                                        color={0,0,127}));
+        connect(motMod.omega_r, speBlo.omega_r) annotation (Line(points={{26.5714,
+                -4.85714},{26.5714,-56.29},{13.9,-56.29}},
+                                                 color={0,0,127}));
+        connect(eleTor.y, speBlo.tau_e) annotation (Line(points={{-27,-44},{-16,-44},{
+                -16,-56.4},{-10,-56.4}}, color={0,0,127}));
+        connect(eleFre_1.y, speBlo.omega) annotation (Line(points={{-25,-90},{
+                -18,-90},{-18,-69.6},{-10,-69.6}},
+                                          color={0,0,127}));
+        connect(voltageConversion.v_qs, motMod.v_qs) annotation (Line(points={{-18.1,
+                20.1},{20,20.1},{20,9.71429},{26.5714,9.71429}},
+                                                           color={0,0,127}));
+        connect(voltageConversion.v_ds, motMod.v_ds) annotation (Line(points={{-18.3,
+                7.9},{-18.3,6.11429},{26.5714,6.11429}},
+                                                    color={0,0,127}));
+        connect(frequencyConversion.omega, motMod.omega) annotation (Line(points={{-16.1,
+                -18.1},{20,-18.1},{20,-1.42857},{26.5714,-1.42857}}, color={0,0,127}));
+        connect(LoaTor.y, speBlo.tau_m) annotation (Line(points={{-59,-64},{-56,-64},{
+                -56,-63},{-10,-63}}, color={0,0,127}));
+        connect(frequencyConversion.f, fre.y) annotation (Line(points={{-40,-18},
+                {-52,-18},{-52,28},{-59,28}}, color={0,0,127}));
+        connect(voltageConversion.V_rms, Vrms.y) annotation (Line(points={{-42,
+                14},{-50,14},{-50,48},{-59,48}}, color={0,0,127}));
+        annotation (
+          Icon(coordinateSystem(preserveAspectRatio=false, extent={{-100,-100},{
+                  100,100}})),
+          Diagram(coordinateSystem(preserveAspectRatio=false, extent={{-100,-100},
+                  {100,100}})),
+          experiment(
+            Interval=1e-06,
+            Tolerance=1e-06,
+            __Dymola_Algorithm="Dopri45"));
+      end TestingModel;
+
+      model SquirrelCageBeta
+          extends Modelica.Icons.Example;
+        parameter Integer P=4 "Number of pole pairs";
+        parameter Real J=0.0131;
+        parameter Real Lr=0.1780;
+        parameter Real Ls=0.1780;
+        parameter Real Rr=1.3950;
+        parameter Real Lm=0.1722;
+        parameter Real Rs=1.4050;
+        Modelica.Blocks.Sources.RealExpression loaTor(y=26.5) "Load torque"
+          annotation (Placement(transformation(extent={{-54,-18},{-34,2}})));
+        Sources.Grid                                             sou(f=50, V=400)
+          "Voltage source"
+          annotation (Placement(transformation(extent={{-10,40},{10,60}})));
+        Buildings.Electrical.AC.ThreePhasesBalanced.Loads.MotorDrive.InductionMotors.BaseClasses.ExperimentalBetaVersion.InductionMotor.SquirrelCageBeta
+          motDri(
+           final P=P,
+           final J=J,
+           final Lr=Lr,
+           final Ls=Ls,
+           final Rr=Rr,
+           final Lm=Lm,
+           final Rs=Rs)
+                       "Motor"
+                       annotation (Placement(transformation(extent={{-10,-10},{10,10}})));
+      equation
+        connect(motDri.terminal, sou.terminal)
+          annotation (Line(points={{0,10},{0,40}}, color={0,120,120}));
+        connect(motDri.tau_m, loaTor.y)
+          annotation (Line(points={{-12,-8},{-33,-8}}, color={0,0,127}));
+        annotation (Icon(coordinateSystem(preserveAspectRatio=false)), Diagram(
+              coordinateSystem(preserveAspectRatio=false)));
+      end SquirrelCageBeta;
+
+      model SquirrelCageDriveBeta "This example shows how to use the squirrel cage induction motor with built-in speed control (beta version)"
+
+        extends Modelica.Icons.Example;
+
+        parameter Integer P=6 "Number of pole pairs";
+        parameter Real J=0.0131;
+        parameter Real Lr=0.1780;
+        parameter Real Ls=0.1780;
+        parameter Real Rr=1.3950;
+        parameter Real Lm=0.1722;
+        parameter Real Rs=1.4050;
+        parameter Real k=1;
+        parameter Real Ti=0.5;
+        Buildings.Electrical.AC.ThreePhasesBalanced.Sources.Grid sou(f=50, V=
+              400)
+          "Voltage source"
+          annotation (Placement(transformation(extent={{-10,40},{10,60}})));
+        Modelica.Blocks.Sources.RealExpression tau_m(y=0)
+          "Load torque"
+          annotation (Placement(transformation(extent={{-80,-18},{-60,2}})));
+        Modelica.Blocks.Sources.Step temSet(
+          height=+480,
+          offset=480,
+          startTime=1)   "Set point of control target"
+          annotation (Placement(transformation(extent={{-80,40},{-60,60}})));
+        Modelica.Blocks.Sources.RealExpression mea(y=motDri1.speBlo.N)
+          "Measured value of control target"
+          annotation (Placement(transformation(extent={{-80,10},{-60,30}})));
+
+        Buildings.Electrical.AC.ThreePhasesBalanced.Loads.MotorDrive.InductionMotors.BaseClasses.ExperimentalBetaVersion.InductionMotor.SquirrelCageDriveBeta
+          motDri1(
+          final P=P,
+          final J=J,
+          final Lr=Lr,
+          final Ls=Ls,
+          final Rr=Rr,
+          final Lm=Lm,
+          final Rs=Rs,
+          final k=k,
+          final Ti=Ti)
+          annotation (Placement(transformation(extent={{-10,-10},{10,10}})));
+      equation
+        connect(sou.terminal, motDri1.terminal)
+          annotation (Line(points={{0,40},{0,10}}, color={0,120,120}));
+        connect(motDri1.setPoi, temSet.y) annotation (Line(points={{-12,8},{-38,
+                8},{-38,50},{-59,50}}, color={0,0,127}));
+        connect(motDri1.mea, mea.y) annotation (Line(points={{-12,4},{-52,4},{
+                -52,20},{-59,20}}, color={0,0,127}));
+        connect(tau_m.y, motDri1.tau_m)
+          annotation (Line(points={{-59,-8},{-12,-8}}, color={0,0,127}));
+        annotation (experiment(Tolerance=1e-6, StopTime=3600),
+      __Dymola_Commands(file="modelica://Buildings/Resources/Scripts/Dymola/Electrical/AC/ThreePhasesBalanced/Loads/MotorDrive/InductionMotors/Examples/SquirrelCageDrive.mos"
+              "Simulate and plot"),
+          Documentation(info="<html>
+<p>
+Example that simulates an induction motor with variable speed control to track 
+a step signal. 
+</p>
+</html>",       revisions="<html>
+<ul>
+<li>
+September 24, 2023, by Zhanwei He:<br/>
+First implementation.
+</li>
+</ul>
+</html>"));
+      end SquirrelCageDriveBeta;
+    end Examples;
+
+    package BaseClasses
+      model StatorCurrent_d "d-axis stator current calculation block"
+        extends Modelica.Blocks.Icons.Block;
+         parameter Real Lr;
+         parameter Real Rr;
+         parameter Real Lm;
+         parameter Real Rs;
+         parameter Real Ls;
+        Modelica.Blocks.Interfaces.RealInput v_ds
+          annotation (Placement(transformation(extent={{-140,80},{-100,120}}),
+              iconTransformation(extent={{-140,80},{-100,120}})));
+        Modelica.Blocks.Interfaces.RealInput i_ds
+          annotation (Placement(transformation(extent={{-140,40},{-100,80}}),
+              iconTransformation(extent={{-140,40},{-100,80}})));
+        Modelica.Blocks.Interfaces.RealInput der_i_dr annotation (Placement(
+              transformation(extent={{-140,2},{-100,42}}),  iconTransformation(extent={{-140,2},
+                  {-100,42}})));
+        Modelica.Blocks.Interfaces.RealInput omega annotation (Placement(transformation(
+                extent={{-140,-42},{-100,-2}}),  iconTransformation(extent={{-140,-42},
+                  {-100,-2}})));
+        Modelica.Blocks.Interfaces.RealInput i_qr
+          annotation (Placement(transformation(extent={{-140,-84},{-100,-44}}),
+              iconTransformation(extent={{-140,-84},{-100,-44}})));
+        Modelica.Blocks.Interfaces.RealInput i_qs annotation (Placement(
+              transformation(extent={{-140,-120},{-100,-80}}),  iconTransformation(
+                extent={{-140,-120},{-100,-80}})));
+        Modelica.Blocks.Interfaces.RealOutput der_i_ds annotation (Placement(
+              transformation(extent={{100,-26},{154,28}}),iconTransformation(extent={{100,-26},
+                  {154,28}})));
+
+      equation
+        der_i_ds =(((v_ds)/Ls)-((Rs*i_ds)/Ls)-((der_i_dr*Lm)/Ls)+(omega*i_qs)+((omega*Lm*i_qr)/Ls));
+        annotation (
+          Icon(coordinateSystem(preserveAspectRatio=false, extent={{-100,-100},{100,100}})),
+          Diagram(coordinateSystem(preserveAspectRatio=false, extent={{-100,-100},{100,
+                  100}})));
+      end StatorCurrent_d;
+
+      model StatorCurrent_q "q-axis stator current calculation block"
+        extends Modelica.Blocks.Icons.Block;
+        parameter Real Lr;
+        parameter Real Rr;
+        parameter Real Lm;
+        parameter Real Rs;
+        parameter Real Ls;
+        Modelica.Blocks.Interfaces.RealInput v_qs
+          annotation (Placement(transformation(extent={{-140,78},{-100,118}}),
+              iconTransformation(extent={{-140,78},{-100,118}})));
+        Modelica.Blocks.Interfaces.RealInput i_qs
+          annotation (Placement(transformation(extent={{-140,38},{-100,78}}),
+              iconTransformation(extent={{-140,38},{-100,78}})));
+        Modelica.Blocks.Interfaces.RealInput der_i_qr annotation (Placement(
+              transformation(extent={{-140,-2},{-100,38}}), iconTransformation(extent={{-140,-2},
+                  {-100,38}})));
+        Modelica.Blocks.Interfaces.RealInput omega annotation (Placement(transformation(
+                extent={{-140,-42},{-100,-2}}),  iconTransformation(extent={{-140,-42},
+                  {-100,-2}})));
+        Modelica.Blocks.Interfaces.RealInput i_dr
+          annotation (Placement(transformation(extent={{-140,-80},{-100,-40}}),
+              iconTransformation(extent={{-140,-80},{-100,-40}})));
+        Modelica.Blocks.Interfaces.RealInput i_ds
+          annotation (Placement(transformation(extent={{-140,-120},{-100,-80}}),
+              iconTransformation(extent={{-140,-120},{-100,-80}})));
+        Modelica.Blocks.Interfaces.RealOutput der_i_qs annotation (Placement(
+              transformation(extent={{100,-28},{154,26}}),iconTransformation(extent={{100,-28},
+                  {154,26}})));
+
+      equation
+        der_i_qs =(((v_qs)/Ls)-((Rs*i_qs)/Ls)-((der_i_qr*Lm)/Ls)-(omega*i_ds)-((omega*Lm*i_dr)/Ls));
+        annotation (
+          Icon(coordinateSystem(preserveAspectRatio=false, extent={{-100,-100},{100,100}})),
+          Diagram(coordinateSystem(preserveAspectRatio=false, extent={{-100,-100},{100,
+                  100}})));
+      end StatorCurrent_q;
+
+      model RotorCurrent_d "d-axis rotor current calculation blck"
+        extends Modelica.Blocks.Icons.Block;
+          parameter Real Lr;
+          parameter Real Rr;
+          parameter Real Lm;
+        Modelica.Blocks.Interfaces.RealInput v_dr
+          annotation (Placement(transformation(extent={{-140,80},{-100,120}}),
+              iconTransformation(extent={{-140,80},{-100,120}})));
+        Modelica.Blocks.Interfaces.RealInput i_qr
+          annotation (Placement(transformation(extent={{-140,-80},{-100,-40}}),
+              iconTransformation(extent={{-140,-80},{-100,-40}})));
+        Modelica.Blocks.Interfaces.RealInput der_i_ds
+          annotation (Placement(transformation(extent={{-140,0},{-100,40}}),
+              iconTransformation(extent={{-140,0},{-100,40}})));
+        Modelica.Blocks.Interfaces.RealInput omega_r
+          annotation (Placement(transformation(extent={{-140,-40},{-100,0}}),
+              iconTransformation(extent={{-140,-40},{-100,0}})));
+        Modelica.Blocks.Interfaces.RealInput i_dr
+          annotation (Placement(transformation(extent={{-140,40},{-100,80}}),
+              iconTransformation(extent={{-140,40},{-100,80}})));
+        Modelica.Blocks.Interfaces.RealInput i_qs
+          annotation (Placement(transformation(extent={{-140,-120},{-100,-80}}),
+              iconTransformation(extent={{-140,-120},{-100,-80}})));
+        Modelica.Blocks.Interfaces.RealOutput der_i_dr annotation (Placement(
+              transformation(extent={{100,-22},{142,20}}),iconTransformation(extent={{100,-22},
+                  {142,20}})));
+
+      initial equation
+      equation
+        der_i_dr = (((v_dr)/Lr)-((Rr*i_dr)/Lr)-((der_i_ds*Lm)/Lr)+(omega_r*i_qr)+((omega_r*Lm*i_qs)/Lr));
+        annotation (
+          Icon(coordinateSystem(preserveAspectRatio=false, extent={{-100,-100},{100,100}})),
+          Diagram(coordinateSystem(preserveAspectRatio=false, extent={{-100,-100},{100,
+                  100}})));
+      end RotorCurrent_d;
+
+      model RotorCurrent_q "q-axis rotor current calculation blck"
+        extends Modelica.Blocks.Icons.Block;
+         parameter Real Lr;
+         parameter Real Rr;
+         parameter Real Lm;
+        Modelica.Blocks.Interfaces.RealInput v_qr
+          annotation (Placement(transformation(extent={{-140,80},{-100,120}}),
+              iconTransformation(extent={{-140,80},{-100,120}})));
+        Modelica.Blocks.Interfaces.RealInput i_qr
+          annotation (Placement(transformation(extent={{-140,38},{-100,78}}),
+              iconTransformation(extent={{-140,38},{-100,78}})));
+        Modelica.Blocks.Interfaces.RealInput der_i_qs
+          annotation (Placement(transformation(extent={{-140,-2},{-100,38}}),
+              iconTransformation(extent={{-140,-2},{-100,38}})));
+        Modelica.Blocks.Interfaces.RealInput omega_r
+          annotation (Placement(transformation(extent={{-140,-44},{-100,-4}}),
+              iconTransformation(extent={{-140,-44},{-100,-4}})));
+        Modelica.Blocks.Interfaces.RealInput i_dr
+          annotation (Placement(transformation(extent={{-140,-82},{-100,-42}}),
+              iconTransformation(extent={{-140,-82},{-100,-42}})));
+        Modelica.Blocks.Interfaces.RealInput i_ds
+          annotation (Placement(transformation(extent={{-140,-120},{-100,-80}}),
+              iconTransformation(extent={{-140,-120},{-100,-80}})));
+        Modelica.Blocks.Interfaces.RealOutput der_i_qr annotation (Placement(
+              transformation(extent={{100,-20},{140,20}}),iconTransformation(extent={{100,-20},
+                  {140,20}})));
+      equation
+        der_i_qr = (((v_qr)/Lr)-((Rr*i_qr)/Lr)-((der_i_qs*Lm)/Lr)-(omega_r*i_dr)-((omega_r*Lm*i_ds)/Lr));
+        annotation (
+          Icon(coordinateSystem(preserveAspectRatio=false, extent={{-100,-100},{100,100}})),
+          Diagram(coordinateSystem(preserveAspectRatio=false, extent={{-100,-100},{100,
+                  100}})));
+      end RotorCurrent_q;
+
+      model SpeedBlock
+        extends Modelica.Blocks.Icons.Block;
+        Modelica.Blocks.Interfaces.RealInput tau_e annotation (Placement(transformation(
+                extent={{-140,40},{-100,80}}),iconTransformation(extent={{-140,40},{-100,
+                  80}})));
+        Modelica.Blocks.Interfaces.RealInput tau_m annotation (Placement(transformation(
+                extent={{-140,-20},{-100,20}}),iconTransformation(extent={{-140,-20},{
+                  -100,20}})));
+        Modelica.Blocks.Interfaces.RealInput omega annotation (Placement(transformation(
+                extent={{-140,-80},{-100,-40}}),iconTransformation(extent={{-140,-80},
+                  {-100,-40}})));
+        Modelica.Blocks.Interfaces.RealOutput omega_r annotation (Placement(transformation(
+                extent={{100,42},{138,80}}),iconTransformation(extent={{100,42},{138,80}})));
+        Modelica.Blocks.Interfaces.RealOutput N annotation (Placement(transformation(
+                extent={{102,-78},{138,-42}}),iconTransformation(extent={{100,-80},
+                  {138,-42}})));
+
+      parameter Real J( start=0.0131, fixed=true);
+      parameter Integer P( start=4, fixed=true);
+        Modelica.Blocks.Math.Feedback feedback
+          annotation (Placement(transformation(extent={{-70,22},{-50,42}})));
+        Modelica.Blocks.Math.Gain gain(k=P/(2*J))
+          annotation (Placement(transformation(extent={{-22,-10},{-2,10}})));
+        Modelica.Blocks.Continuous.Integrator integrator
+          annotation (Placement(transformation(extent={{12,-10},{32,10}})));
+        Modelica.Blocks.Math.Gain gain1(k=(2/P)*(60/(2*Modelica.Constants.pi)))
+          annotation (Placement(transformation(extent={{50,-10},{70,10}})));
+        Modelica.Blocks.Math.Feedback feedback1
+          annotation (Placement(transformation(extent={{-70,-70},{-50,-90}})));
+      equation
+        connect(feedback.u1, tau_e) annotation (Line(points={{-68,32},{-80,32},{-80,
+                60},{-120,60}},
+                           color={0,0,127}));
+        connect(feedback.u2, tau_m)
+          annotation (Line(points={{-60,24},{-60,0},{-120,0}},color={0,0,127}));
+        connect(feedback.y, gain.u)
+          annotation (Line(points={{-51,32},{-42,32},{-42,0},{-24,0}},
+                                                       color={0,0,127}));
+        connect(gain.y, integrator.u)
+          annotation (Line(points={{-1,0},{10,0}},  color={0,0,127}));
+        connect(integrator.y, gain1.u)
+          annotation (Line(points={{33,0},{48,0}},   color={0,0,127}));
+        connect(gain1.y, N) annotation (Line(points={{71,0},{80,0},{80,-60},{120,
+                -60}},
+              color={0,0,127}));
+        connect(feedback1.u1, omega) annotation (Line(points={{-68,-80},{-80,-80},{-80,-60},
+                {-120,-60}},     color={0,0,127}));
+        connect(feedback1.u2, gain1.u) annotation (Line(points={{-60,-72},{40,-72},
+                {40,0},{48,0}},  color={0,0,127}));
+        connect(feedback1.u2, integrator.y) annotation (Line(points={{-60,-72},{
+                -60,-40},{36,-40},{36,0},{33,0}},
+                                       color={0,0,127}));
+        connect(N, N)
+          annotation (Line(points={{120,-60},{120,-60}}, color={0,0,127}));
+        connect(feedback1.y, omega_r) annotation (Line(points={{-51,-80},{80,-80},{80,
+                61},{119,61}}, color={0,0,127}));
+        annotation (
+          Icon(coordinateSystem(preserveAspectRatio=false)),
+          Diagram(coordinateSystem(preserveAspectRatio=false)));
+      end SpeedBlock;
+
+      model TorqueBlock
+        extends Modelica.Blocks.Icons.Block;
+        parameter Integer P=4 "Number of pole pairs";
+        parameter Real Lm( start=0.5, fixed=true);
+        parameter Real J( start=0.0131, fixed=true);
+        Modelica.Blocks.Interfaces.RealInput i_qs
+          annotation (Placement(transformation(extent={{-140,58},{-100,98}})));
+        Modelica.Blocks.Interfaces.RealInput i_ds
+          annotation (Placement(transformation(extent={{-140,20},{-100,60}})));
+        Modelica.Blocks.Interfaces.RealInput i_qr
+          annotation (Placement(transformation(extent={{-140,-60},{-100,-20}})));
+        Modelica.Blocks.Interfaces.RealInput i_dr
+          annotation (Placement(transformation(extent={{-140,-100},{-100,-60}})));
+        Modelica.Blocks.Interfaces.RealOutput tau_e annotation (Placement(
+              transformation(extent={{100,-20},{140,20}}),iconTransformation(extent={{100,-20},
+                  {140,20}})));
+      equation
+        tau_e = ((i_qs*i_dr)-(i_ds*i_qr))*(3/2)*(P/(2))*Lm;
+        annotation (
+          Icon(coordinateSystem(preserveAspectRatio=false)),
+          Diagram(coordinateSystem(preserveAspectRatio=false)));
+      end TorqueBlock;
+
+      model CurrentBlock
+        extends Modelica.Blocks.Icons.Block;
+        Modelica.Blocks.Interfaces.RealInput i_ds
+          annotation (Placement(transformation(extent={{-140,-20},{-100,20}}),
+              iconTransformation(extent={{-140,-20},{-100,20}})));
+        Modelica.Blocks.Interfaces.RealInput i_qs
+          annotation (Placement(transformation(extent={{-140,-100},{-100,-60}}),
+              iconTransformation(extent={{-140,-100},{-100,-60}})));
+        Modelica.Blocks.Interfaces.RealInput wt
+          annotation (Placement(transformation(extent={{-140,60},{-100,100}}),
+              iconTransformation(extent={{-140,60},{-100,100}})));
+        Modelica.Blocks.Interfaces.RealOutput I_a
+          annotation (Placement(transformation(extent={{100,60},{140,100}}),
+              iconTransformation(extent={{100,60},{140,100}})));
+        Modelica.Blocks.Interfaces.RealOutput I_b
+          annotation (Placement(transformation(extent={{100,-20},{140,20}}),
+              iconTransformation(extent={{100,-20},{140,20}})));
+        Modelica.Blocks.Interfaces.RealOutput I_c
+          annotation (Placement(transformation(extent={{100,-100},{140,-60}}),
+              iconTransformation(extent={{100,-100},{140,-60}})));
+      equation
+        I_a = sin(wt)*i_ds+cos(wt)*i_qs;
+        I_b = sin(wt-2.0933)*i_ds+cos(wt-2.0933)*i_qs;
+        I_c = sin(wt+2.0933)*i_ds+cos(wt+2.0933)*i_qs;
+        annotation (
+          Icon(coordinateSystem(preserveAspectRatio=false)),
+          Diagram(coordinateSystem(preserveAspectRatio=false)));
+      end CurrentBlock;
+
+      model MotorModel
+        parameter Modelica.Units.SI.Reactance Lr;
+        parameter Modelica.Units.SI.Reactance Ls;
+        parameter Modelica.Units.SI.Resistance Rr;
+        parameter Modelica.Units.SI.Reactance Lm;
+        parameter Modelica.Units.SI.Reactance Rs;
+
+
+        Modelica.Blocks.Interfaces.RealInput v_ds annotation (Placement(
+              transformation(extent={{-20,-20},{20,20}}, origin={-160,48}),
+                                                           iconTransformation(extent={{-180,28},
+                  {-140,68}})));
+        Modelica.Blocks.Interfaces.RealInput v_qs annotation (Placement(
+              transformation(extent={{-20,-20},{20,20}}, origin={-160,90}),
+                                                          iconTransformation(extent={{-180,70},
+                  {-140,110}})));
+        Modelica.Blocks.Interfaces.RealInput omega annotation (Placement(transformation(
+                extent={{-20,-20},{20,20}}, origin={-160,-40}),
+                                              iconTransformation(extent={{-180,-60},{-140,
+                  -20}})));
+        Modelica.Blocks.Interfaces.RealInput omega_r annotation (Placement(transformation(
+                extent={{-20,-20},{20,20}}, origin={-160,-80}),
+                                                iconTransformation(extent={{-180,-100},
+                  {-140,-60}})));
+        Modelica.Blocks.Interfaces.RealOutput i_qs annotation (Placement(
+              transformation(extent={{-20,-20},{20,20}}, origin={160,80}),
+                                                         iconTransformation(extent={{140,60},
+                  {180,100}})));
+        Modelica.Blocks.Interfaces.RealOutput i_ds annotation (Placement(
+              transformation(extent={{-20,-20},{20,20}}, origin={160,40}),
+                                                        iconTransformation(extent={{140,20},
+                  {180,60}})));
+        Modelica.Blocks.Interfaces.RealOutput i_qr annotation (Placement(
+              transformation(extent={{-20,-20},{20,20}}, origin={160,-40}),
+                                                         iconTransformation(extent={{140,-60},
+                  {180,-20}})));
+        Modelica.Blocks.Interfaces.RealOutput i_dr annotation (Placement(
+              transformation(extent={{-20,-20},{20,20}}, origin={160,-80}),
+                                                           iconTransformation(extent={{140,
+                  -100},{180,-60}})));
+        RotorCurrent_q i_qr_block(
+          final Lr=Lr,
+          final Rr=Rr,
+          final Lm=Lm) annotation (Placement(transformation(extent={{-10,-10},{10,
+                  10}}, origin={70,-40})));
+        Modelica.Blocks.Continuous.Integrator int_qr annotation (Placement(
+              transformation(extent={{-10,-10},{10,10}}, origin={110,-40})));
+        RotorCurrent_d i_dr_block(
+          final Lr=Lr,
+          final Rr=Rr,
+          final Lm=Lm) annotation (Placement(transformation(extent={{-10,-10},{10,
+                  10}}, origin={70,-100})));
+        Modelica.Blocks.Continuous.Integrator int_dr annotation (Placement(
+              transformation(extent={{-10,-10},{10,10}}, origin={110,-100})));
+        Modelica.Blocks.Sources.Constant v_dr(k=0)
+          annotation (Placement(transformation(extent={{10,-10},{-10,10}}, origin={90,
+                  -70})));
+        StatorCurrent_q i_qs_block(
+          final Lr=Lr,
+          final Ls=Ls,
+          final Rr=Rr,
+          final Lm=Lm,
+          final Rs=Rs) annotation (Placement(transformation(extent={{-10,-10},{10,
+                  10}}, origin={70,90})));
+        Modelica.Blocks.Continuous.Integrator int_qs annotation (Placement(
+              transformation(extent={{-10,-10},{10,10}}, origin={110,90})));
+        StatorCurrent_d i_ds_block(
+          final Lr=Lr,
+          final Ls=Ls,
+          final Rr=Rr,
+          final Lm=Lm,
+          final Rs=Rs) annotation (Placement(transformation(extent={{-10,-10},{10,
+                  10}}, origin={70,50})));
+        Modelica.Blocks.Continuous.Integrator int_ds annotation (Placement(
+              transformation(extent={{-10,-10},{10,10}}, origin={110,40})));
+        Modelica.Blocks.Sources.RealExpression I_qs(y=i_qs) annotation (Placement(
+              transformation(extent={{10,-12},{-10,12}}, origin={130,120})));
+        Modelica.Blocks.Sources.RealExpression Der_i_qr(y=i_qr_block.der_i_qr)
+          annotation (Placement(transformation(extent={{-10,-12},{10,12}}, origin=
+                 {-70,80})));
+        Modelica.Blocks.Sources.RealExpression I_dr(y=i_dr) annotation (Placement(
+              transformation(extent={{10,-12},{-10,12}}, origin={130,-120})));
+        Modelica.Blocks.Sources.RealExpression I_ds(y=i_ds) annotation (Placement(
+              transformation(extent={{10,-12},{-10,12}}, origin={130,20})));
+        Modelica.Blocks.Sources.Constant v_qr(k=0) annotation (Placement(
+              transformation(extent={{10,-10},{-10,10}}, origin={90,4})));
+        Modelica.Blocks.Sources.RealExpression I_qr(y=i_qr) annotation (Placement(
+              transformation(extent={{10,-12},{-10,12}}, origin={130,-16})));
+        Modelica.Blocks.Sources.RealExpression Der_i_qs(y=i_qs_block.der_i_qs)
+          annotation (Placement(transformation(extent={{-10,-12},{10,12}}, origin=
+                 {-72,-20})));
+        Modelica.Blocks.Sources.RealExpression Der_i_ds(y=i_ds_block.der_i_ds)
+          annotation (Placement(transformation(extent={{-10,-12},{10,12}}, origin=
+                 {-72,-120})));
+        Modelica.Blocks.Sources.RealExpression Der_i_dr(y=i_dr_block.der_i_dr)
+          annotation (Placement(transformation(extent={{-10,-12},{10,12}}, origin=
+                 {-70,40})));
+      equation
+        connect(i_qr_block.der_i_qr, int_qr.u)
+          annotation (Line(points={{82,-40},{98,-40}}, color={0,0,127}));
+        connect(v_dr.y, i_dr_block.v_dr) annotation (Line(points={{79,-70},{50,-70},
+                {50,-90},{58,-90}}, color={0,0,127}));
+
+        connect(int_qs.y, i_qs) annotation (Line(points={{121,90},{130,90},{130,80},{160,
+                80}}, color={0,0,127}));
+        connect(i_ds, int_ds.y)
+          annotation (Line(points={{160,40},{121,40}}, color={0,0,127}));
+        connect(i_qr, int_qr.y)
+          annotation (Line(points={{160,-40},{121,-40}}, color={0,0,127}));
+        connect(i_dr, i_dr)
+          annotation (Line(points={{160,-80},{160,-80}}, color={0,0,127}));
+        connect(int_dr.y, i_dr) annotation (Line(points={{121,-100},{130,-100},{130,-80},
+                {160,-80}}, color={0,0,127}));
+        connect(I_qs.y, i_qs_block.i_qs) annotation (Line(points={{119,120},{0,
+                120},{0,95.8},{58,95.8}}, color={0,0,127}));
+        connect(v_qs, i_qs_block.v_qs) annotation (Line(
+            points={{-160,90},{-120,90},{-120,100},{58,100},{58,99.8}},
+            color={0,0,127},
+            pattern=LinePattern.Dash,
+            thickness=0.5));
+        connect(omega, i_qs_block.omega) annotation (Line(
+            points={{-160,-40},{-120,-40},{-120,20},{-40,20},{-40,88},{58,88},{58,
+                87.8}},
+            color={244,125,35},
+            pattern=LinePattern.Dash,
+            thickness=0.5));
+
+        connect(I_dr.y, i_qs_block.i_dr) annotation (Line(points={{119,-120},{40,
+                -120},{40,84},{58,84}}, color={0,0,127}));
+        connect(I_ds.y, i_qs_block.i_ds) annotation (Line(points={{119,20},{20,20},
+                {20,80},{58,80}}, color={0,0,127}));
+        connect(i_ds_block.der_i_ds, int_ds.u) annotation (Line(points={{82.7,
+                50.1},{92,50.1},{92,40},{98,40}}, color={0,0,127}));
+        connect(v_ds, i_ds_block.v_ds) annotation (Line(
+            points={{-160,48},{-120,48},{-120,60},{58,60}},
+            color={0,0,127},
+            pattern=LinePattern.Dash,
+            thickness=0.5));
+        connect(i_qs_block.der_i_qs, int_qs.u) annotation (Line(points={{82.7,
+                89.9},{89.35,89.9},{89.35,90},{98,90}}, color={0,0,127}));
+        connect(i_dr_block.der_i_dr, int_dr.u) annotation (Line(points={{82.1,-100.1},
+                {90.155,-100.1},{90.155,-100},{98,-100}}, color={0,0,127}));
+        connect(i_ds_block.i_ds, i_qs_block.i_ds) annotation (Line(points={{58,56},
+                {20,56},{20,80},{58,80}}, color={0,0,127}));
+        connect(i_qr_block.i_ds, i_qs_block.i_ds) annotation (Line(points={{58,-50},
+                {20,-50},{20,80},{58,80}}, color={0,0,127}));
+        connect(i_qr_block.i_dr, i_qs_block.i_dr) annotation (Line(points={{58,-46.2},
+                {40,-46.2},{40,84},{58,84}}, color={0,0,127}));
+        connect(i_dr_block.i_dr, I_dr.y) annotation (Line(points={{58,-94},{40,-94},
+                {40,-120},{119,-120}}, color={0,0,127}));
+        connect(i_qr_block.v_qr, v_qr.y) annotation (Line(points={{58,-30},{50,-30},
+                {50,4},{79,4}}, color={0,0,127}));
+        connect(i_ds_block.omega, omega) annotation (Line(
+            points={{58,47.8},{58,48},{-40,48},{-40,20},{-120,20},{-120,-40},{-160,
+                -40}},
+            color={244,125,35},
+            pattern=LinePattern.Dash,
+            thickness=0.5));
+
+        connect(i_dr_block.omega_r, omega_r) annotation (Line(
+            points={{58,-102},{10,-102},{10,-80},{-160,-80}},
+            color={0,140,72},
+            pattern=LinePattern.Dash,
+            thickness=0.5));
+        connect(i_qr_block.omega_r, omega_r) annotation (Line(
+            points={{58,-42.4},{58,-42},{10,-42},{10,-80},{-160,-80}},
+            color={0,140,72},
+            thickness=0.5,
+            pattern=LinePattern.Dash));
+        connect(i_ds_block.der_i_dr, Der_i_dr.y) annotation (Line(points={{58,
+                52.2},{-50,52.2},{-50,40},{-59,40}}, color={0,0,127}));
+        connect(i_dr_block.der_i_ds, Der_i_ds.y) annotation (Line(points={{58,-98},
+                {-48,-98},{-48,-120},{-61,-120}}, color={0,0,127}));
+        connect(i_ds_block.i_qs, I_qs.y) annotation (Line(points={{58,40},{0,40},
+                {0,120},{119,120}}, color={0,0,127}));
+        connect(i_dr_block.i_qs, I_qs.y) annotation (Line(points={{58,-110},{0,-110},
+                {0,120},{119,120}}, color={0,0,127}));
+        connect(Der_i_qs.y, i_qr_block.der_i_qs) annotation (Line(points={{-61,-20},
+                {-50,-20},{-50,-38.2},{58,-38.2}}, color={0,0,127}));
+        connect(I_qr.y, i_qr_block.i_qr) annotation (Line(points={{119,-16},{-12,
+                -16},{-12,-34.2},{58,-34.2}}, color={0,0,127}));
+        connect(i_dr_block.i_qr, I_qr.y) annotation (Line(points={{58,-106},{-12,
+                -106},{-12,-16},{119,-16}}, color={0,0,127}));
+        connect(i_ds_block.i_qr, i_qr_block.i_qr) annotation (Line(points={{58,
+                43.6},{-12,43.6},{-12,-34.2},{58,-34.2}}, color={0,0,127}));
+        connect(Der_i_qr.y, i_qs_block.der_i_qr) annotation (Line(points={{-59,80},
+                {-50,80},{-50,91.8},{58,91.8}}, color={0,0,127}));
+        annotation (
+          Icon(coordinateSystem(preserveAspectRatio=false, extent={{-140,-140},{140,140}}),
+              graphics={Rectangle(
+                extent={{-140,140},{140,-144}},
+                lineColor={0,0,0},
+                lineThickness=0.5,
+                fillColor={255,255,255},
+                fillPattern=FillPattern.Solid), Text(
+                extent={{-58,170},{62,142}},
+                textColor={0,0,255},
+                textString="%name
+")}),     Diagram(coordinateSystem(preserveAspectRatio=false, extent={{-140,-140},{140,
+                  140}})));
+      end MotorModel;
+
+      model MotorMachineInterfaceBeta "Calculates the electromagnetic torque based on voltage and frequency"
+
+        parameter Integer P=4 "Number of pole pairs";
+
+        parameter Real J( start=0.0131, fixed=true);
+        parameter Real Lr;
+        parameter Real Ls;
+        parameter Real Rr;
+        parameter Real Lm;
+        parameter Real Rs;
+
+        Modelica.Blocks.Interfaces.RealInput V_rms(unit="V") "Prescribed RMS voltage"
+          annotation (Placement(transformation(
+              extent={{-20,-20},{20,20}},
+              rotation=0,
+              origin={-120,50}),
+              iconTransformation(
+              extent={{-20,-20},{20,20}},
+              rotation=0,
+              origin={-120,40})));
+        Modelica.Blocks.Interfaces.RealInput f(final quantity="Frequency",
+          final unit="Hz")
+          "Controllable freuqency to the motor"
+          annotation (Placement(transformation(
+              extent={{-20,-20},{20,20}},
+              rotation=0,
+              origin={-120,0}),
+              iconTransformation(
+              extent={{-20,-20},{20,20}},
+              rotation=0,
+              origin={-120,0})));
+        Modelica.Blocks.Interfaces.RealInput omega_r(final quantity="AngularVelocity",
+          final unit="rad/s")
+          "Prescribed rotational speed of rotor"
+          annotation (Placement(transformation(
+              extent={{-20,-20},{20,20}},
+              rotation=0,
+              origin={-120,-50}),
+              iconTransformation(
+              extent={{-20,-20},{20,20}},
+              rotation=0,
+              origin={-120,-40})));
+        Modelica.Blocks.Interfaces.RealOutput tau_e(final quantity="Torque",
+            final unit="N.m") "Electromagenetic torque of rotor" annotation (
+            Placement(transformation(extent={{-20,-20},{20,20}}, origin={120,0}),
+              iconTransformation(extent={{100,-20},{140,20}})));
+
+        MotorModel motMod(
+          final Lr=Lr,
+          final Ls=Ls,
+          final Rr=Rr,
+          final Lm=Lm,
+          final Rs=Rs) annotation (Placement(transformation(extent={{-14,-17},{14,
+                  17}}, origin={24,5})));
+        TorqueBlock torBlo(
+          P=P,
+          Lm=Lm,
+          J=J) annotation (Placement(transformation(extent={{-10,-10},{10,10}},
+                origin={70,8})));
+        VoltageConversion volCon
+          "Obtain the stator voltage values in q-axis and d-axis"
+          annotation (Placement(transformation(extent={{-10,-10},{10,10}}, origin=
+                 {-70,50})));
+
+        FrequencyConversion frequencyConversion
+          annotation (Placement(transformation(extent={{-80,-10},{-60,10}})));
+      equation
+        connect(motMod.i_dr, torBlo.i_dr) annotation (Line(points={{40,-4.71429},
+                {50,-4.71429},{50,0},{58,0}}, color={0,0,127}));
+        connect(volCon.v_qs, motMod.v_qs) annotation (Line(points={{-58.1,56.1},
+                {0,56.1},{0,15.9286},{8,15.9286}},color={0,0,127}));
+        connect(volCon.v_ds, motMod.v_ds) annotation (Line(points={{-58.3,43.9},
+                {-60,43.9},{-60,44},{-20,44},{-20,10.8286},{8,10.8286}},color={0,
+                0,127}));
+        connect(volCon.V_rms, V_rms)
+          annotation (Line(points={{-82,50},{-120,50}}, color={0,0,127}));
+        connect(frequencyConversion.f, f)
+          annotation (Line(points={{-82,0},{-120,0}}, color={0,0,127}));
+        connect(torBlo.tau_e, tau_e) annotation (Line(points={{82,8},{92,8},{92,
+                0},{120,0}}, color={0,0,127}));
+        connect(motMod.i_qs, torBlo.i_qs) annotation (Line(points={{40,14.7143},
+                {40,15.8},{58,15.8}}, color={0,0,127}));
+        connect(motMod.i_ds, torBlo.i_ds) annotation (Line(points={{40,9.85714},
+                {40,12},{58,12}}, color={0,0,127}));
+        connect(motMod.i_qr, torBlo.i_qr) annotation (Line(points={{40,0.142857},
+                {48,0.142857},{48,4},{58,4}}, color={0,0,127}));
+        connect(motMod.omega_r, omega_r) annotation (Line(points={{8,-4.71429},
+                {0,-4.71429},{0,-50},{-120,-50}}, color={0,0,127}));
+        connect(motMod.omega, frequencyConversion.omega) annotation (Line(
+              points={{8,0.142857},{-25.05,0.142857},{-25.05,-0.1},{-58.1,-0.1}},
+              color={0,0,127}));
+        annotation (Icon(coordinateSystem(preserveAspectRatio=true), graphics={
+                Rectangle(
+                extent={{-100,100},{100,-100}},
+                lineColor={0,0,127},
+                fillColor={255,255,255},
+                fillPattern=FillPattern.Solid),
+                Text(
+                extent={{-82,162},{82,116}},
+                textColor={0,0,255},
+                fillColor={255,255,255},
+                fillPattern=FillPattern.None,
+                textString="%name")}),
+                defaultComponentName="torSpe",
+          Documentation(info="<html>
+<ul>
+<li>
+September, 2023, by Zhanwei He:<br/>
+First implementation.
+</li>
+</ul>
+</html>"));
+      end MotorMachineInterfaceBeta;
+
+      block VoltageConversion "Convert the stator voltage from its root mean square (RMS) value into q-axis and d-axis voltages"
+        extends Modelica.Blocks.Icons.Block;
+        Modelica.Blocks.Interfaces.RealInput V_rms annotation (Placement(transformation(
+                extent={{-140,-20},{-100,20}}),
+                                              iconTransformation(extent={{-140,-20},{-100,
+                  20}})));
+        Modelica.Blocks.Interfaces.RealOutput v_qs annotation (Placement(transformation(
+                extent={{100,42},{138,80}}),iconTransformation(extent={{100,42},{138,80}})));
+        Modelica.Blocks.Interfaces.RealOutput v_ds annotation (Placement(transformation(
+                extent={{100,-78},{136,-42}}),iconTransformation(extent={{98,-80},{136,
+                  -42}})));
+
+      algorithm
+        v_ds:= V_rms;
+      algorithm
+        v_qs:= 0;
+
+          annotation (Line(points={{120,-60},{120,-60}}, color={0,0,127}),
+          Icon(coordinateSystem(preserveAspectRatio=false)),
+          Diagram(coordinateSystem(preserveAspectRatio=false)));
+      end VoltageConversion;
+
+      block FrequencyConversion
+        "Convert the frequency from Hertz to radians per second"
+         extends Modelica.Blocks.Icons.Block;
+          Modelica.Blocks.Interfaces.RealInput f "Value in hertz" annotation (Placement(transformation(
+                extent={{-140,-20},{-100,20}}),
+                                              iconTransformation(extent={{-140,-20},{-100,
+                  20}})));
+        Modelica.Blocks.Interfaces.RealOutput omega "Value in radian per second" annotation (Placement(transformation(
+                extent={{100,-20},{138,18}}),
+                                            iconTransformation(extent={{100,-20},
+                  {138,18}})));
+
+      algorithm
+        omega := 2*Modelica.Constants.pi*f;
+
+      end FrequencyConversion;
+    end BaseClasses;
+    annotation ();
+  end InductionMotor;
+end ExperimentalBetaVersion;
