@@ -151,7 +151,7 @@ model HeatPump "Motor coupled heat pump"
     annotation (Placement(transformation(extent={{-120,20},{-100,40}}),
         iconTransformation(extent={{-120,20},{-100,40}})));
 
-  InductionMotors.SquirrelCageDriveClosedLoop simMot(
+  InductionMotors.SquirrelCageDrive simMot(
     P=pole,
     J=JMotor,
     Lr=X_r,

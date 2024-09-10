@@ -141,7 +141,7 @@ model Chiller "Motor coupled chiller"
   final Modelica.Blocks.Sources.RealExpression loaTor(y=mecChi.shaft.tau)
     "Chiller torque block"
     annotation (Placement(transformation(extent={{-16,10},{-36,30}})));
-  Buildings.Electrical.AC.ThreePhasesBalanced.Loads.MotorDrive.InductionMotors.SquirrelCageDriveClosedLoop
+  Buildings.Electrical.AC.ThreePhasesBalanced.Loads.MotorDrive.InductionMotors.SquirrelCageDrive
     simMot(
     P=pole,
     final J=JMotor,
@@ -170,14 +170,6 @@ model Chiller "Motor coupled chiller"
   Modelica.Blocks.Interfaces.RealInput meaPoi "Measured value of control target"
     annotation (Placement(transformation(extent={{-120,20},{-100,40}}),
     iconTransformation(extent={{-120,20},{-100,40}})));
-  Modelica.Blocks.Interfaces.RealOutput P(final quantity="Power",final unit="W")
-    "Real power"
-    annotation (Placement(transformation(extent={{100,20},{120,40}}),
-    iconTransformation(extent={{100,20}, {120,40}})));
-  Modelica.Blocks.Interfaces.RealOutput Q(final quantity="Power",final unit="var")
-    "Reactive power"
-    annotation (Placement(transformation(extent={{100,-40},{120,-20}}),
-    iconTransformation(extent={{100,-40}, {120,-20}})));
 
 protected
   constant Boolean COP_is_for_cooling = true
