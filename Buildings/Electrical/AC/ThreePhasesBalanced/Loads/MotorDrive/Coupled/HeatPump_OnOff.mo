@@ -151,7 +151,7 @@ model HeatPump_OnOff "Motor coupled heat pump"
     annotation (Placement(transformation(extent={{-120,20},{-100,40}}),
         iconTransformation(extent={{-120,20},{-100,40}})));
 
-  InductionMotors.SquirrelCageDriveClosedLoop_OnOff simMot(
+  InductionMotors.SquirrelCageDrive_OnOff simMot(
     P=pole,
     J=JMotor,
     Lr=X_r,
@@ -196,18 +196,18 @@ equation
           {60,6},{10,6}}, color={0,127,255}));
   connect(port_a2,mecHea. port_a2) annotation (Line(points={{100,-60},{60,-60},
           {60,-6},{10,-6}}, color={0,127,255}));
-  connect(simMot.setPoi, setPoi) annotation (Line(points={{-45.8,58},{-60,58},{-60,
-          80},{-110,80}},     color={0,0,127}));
-  connect(meaPoi, simMot.mea) annotation (Line(points={{-110,30},{-60,30},{
-          -60,52},{-45.8,52}},                                   color={0,0,127}));
-  connect(loaTor.y, simMot.tau_m) annotation (Line(points={{-41,22},{-50,22},
-          {-50,42},{-45.8,42}},
+  connect(simMot.setPoi, setPoi) annotation (Line(points={{-46,58},{-60,58},{
+          -60,80},{-110,80}}, color={0,0,127}));
+  connect(meaPoi, simMot.mea) annotation (Line(points={{-110,30},{-60,30},{-60,
+          52},{-46,52}},                                         color={0,0,127}));
+  connect(loaTor.y, simMot.tau_m) annotation (Line(points={{-41,22},{-50,22},{
+          -50,42},{-46,42}},
                        color={0,0,127}));
   connect(terminal, simMot.terminal) annotation (Line(points={{0,100},{0,66},
           {-30,66},{-30,60}},         color={0,120,120}));
   connect(mecHea.shaft, simMot.shaft) annotation (Line(points={{0,10},{0,50},
           {-20,50}},            color={0,0,0}));
-  connect(simMot.u, u) annotation (Line(points={{-46,48},{-80,48},{-80,-1},{
+  connect(simMot.u, u) annotation (Line(points={{-46,46},{-80,46},{-80,-1},{
           -115,-1}}, color={255,0,255}));
   annotation (Icon(coordinateSystem(preserveAspectRatio=true,extent={{-100,
             -80},{100,100}}),

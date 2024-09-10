@@ -94,20 +94,12 @@ model Pump "Motor coupled chiller"
   Modelica.Blocks.Interfaces.RealInput meaPoi "Measured value of control target"
     annotation (Placement(transformation(extent={{-120,40},{-100,60}}),
         iconTransformation(extent={{-120,30},{-100,50}})));
-  Modelica.Blocks.Interfaces.RealOutput P(final quantity="Power", final unit="W")
-    "Real power"
-    annotation (Placement(transformation(extent={{100,80},{120,100}}),
-        iconTransformation(extent={{100,80},{120,100}})));
-  Modelica.Blocks.Interfaces.RealOutput Q(final quantity="Power", final unit="var")
-    "Reactive power"
-    annotation (Placement(transformation(extent={{100,60},{120,80}}),
-        iconTransformation(extent={{100,60},{120,80}})));
   Modelica.Thermal.HeatTransfer.Interfaces.HeatPort_a heatPort
     "Heat dissipation to environment"
     annotation (Placement(transformation(extent={{-10,-78},{10,-58}}),
         iconTransformation(extent={{-10,-78},{10,-58}})));
 
-  InductionMotors.SquirrelCageDriveClosedLoop motDri(
+  InductionMotors.SquirrelCageDrive motDri(
     P=pole,
     J=JMotor,
     Lr=X_r,
