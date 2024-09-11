@@ -1,5 +1,5 @@
 within Buildings.Electrical.AC.ThreePhasesBalanced.Loads.MotorDrive.InductionMotors1;
-model SquirrelCageDrive
+model SquirrelCageDrive_OnOff
   "Squirrel cage type induction motor with electrical interface and closed loop built-in speed control"
   extends Buildings.Electrical.Interfaces.PartialOnePort(
    redeclare package PhaseSystem =
@@ -81,11 +81,11 @@ model SquirrelCageDrive
     annotation (Placement(transformation(extent={{-76,46},{-56,66}})));
   final Modelica.Blocks.Sources.RealExpression fre(y=omega/(2*Modelica.Constants.pi))
     "Supply voltage frequency"
-    annotation (Placement(transformation(extent={{-70,-60},{-50,-40}})));
+    annotation (Placement(transformation(extent={{-74,-50},{-54,-30}})));
   Modelica.Blocks.Math.Product VFDfre "Controlled frequency"
-    annotation (Placement(transformation(extent={{-20,-20},{0,0}})));
+    annotation (Placement(transformation(extent={{-40,-10},{-20,10}})));
   Modelica.Blocks.Math.Product VFDvol "Controlled voltage"
-    annotation (Placement(transformation(extent={{-20,20},{0,40}})));
+    annotation (Placement(transformation(extent={{-40,40},{-20,60}})));
 
   Modelica.Blocks.Interfaces.RealInput setPoi "Set point of control target"
     annotation (Placement(transformation(
@@ -95,31 +95,31 @@ model SquirrelCageDrive
         iconTransformation(
         extent={{-20,-20},{20,20}},
         rotation=0,
-        origin={-158,80})));
+        origin={-160,80})));
   Modelica.Blocks.Interfaces.RealInput mea "Measured value of control target"
     annotation (Placement(transformation(
         extent={{-20,-20},{20,20}},
         rotation=0,
-        origin={-158,20}),
+        origin={-160,20}),
         iconTransformation(
         extent={{-20,-20},{20,20}},
         rotation=0,
-        origin={-158,20})));
+        origin={-160,20})));
   Modelica.Blocks.Interfaces.RealInput tau_m(unit="N.m")
     "Load torque"
     annotation (Placement(transformation(
         extent={{-20,-20},{20,20}},
         rotation=0,
-        origin={-158,-80}),
+        origin={-160,-80}),
         iconTransformation(
         extent={{-20,-20},{20,20}},
         rotation=0,
-        origin={-158,-80})));
+        origin={-160,-80})));
 
   InductionMotors1.BaseClasses.CurrentBlock current_Block
     annotation (Placement(transformation(extent={{60,30},{80,50}})));
   InductionMotors1.BaseClasses.SpeedBlock speBlo(final J=J, final P=P)
-    annotation (Placement(transformation(extent={{24,-80},{44,-58}})));
+    annotation (Placement(transformation(extent={{38,-80},{58,-58}})));
   Modelica.Blocks.Continuous.Integrator integrator
     annotation (Placement(transformation(extent={{-2,60},{18,80}})));
   Modelica.Blocks.Sources.RealExpression i_ds(y=torSpe.motMod.i_ds)
@@ -130,7 +130,7 @@ model SquirrelCageDrive
       Placement(transformation(extent={{-10,-12},{10,12}}, origin={30,24})));
   Modelica.Blocks.Sources.RealExpression angFre(y=switch1.y*omega)
     "Supply voltage angular frequency" annotation (Placement(transformation(
-          extent={{-10,-12},{10,12}}, origin={-24,-88})));
+          extent={{-10,-12},{10,12}}, origin={-4,-84})));
   InductionMotors1.BaseClasses.MotorMachineInterface torSpe(
     final P=P,
     final J=J,
@@ -139,7 +139,7 @@ model SquirrelCageDrive
     final Rr=Rr,
     final Lm=Lm,
     final Rs=Rs)
-    annotation (Placement(transformation(extent={{22,-18},{42,2}})));
+    annotation (Placement(transformation(extent={{18,-34},{38,-14}})));
   Modelica.Mechanics.Rotational.Interfaces.Flange_b shaft
     "Mechanical connector"
     annotation (Placement(transformation(extent={{90,-10},{110,10}})));
@@ -147,7 +147,7 @@ model SquirrelCageDrive
     useSupport=false,                               exact=true,
     phi(fixed=true))
     "Speed connector"
-    annotation (Placement(transformation(extent={{64,-8},{80,8}})));
+    annotation (Placement(transformation(extent={{72,-8},{88,8}})));
   Modelica.Blocks.Sources.RealExpression angFre1(y=switch1.y*omega)
     "Supply voltage angular frequency" annotation (Placement(transformation(
           extent={{-10,-12},{10,12}}, origin={-66,70})));
@@ -159,19 +159,27 @@ model SquirrelCageDrive
     final Td=Td*2,
     final yMax=yMax,
     final yMin=yMin,
-    final k=20*k,
-    final Ti=2*Ti,
+    final k=k*0.00385,
+    final Ti=Ti*1.5,
     initType=Modelica.Blocks.Types.Init.SteadyState,
     final reverseActing=reverseActing)
     "PI controller as variable frequency drive"
-    annotation (Placement(transformation(extent={{-102,14},{-82,34}})));
+    annotation (Placement(transformation(extent={{-114,16},{-94,36}})));
+  Modelica.Blocks.Interfaces.BooleanInput u
+    annotation (Placement(transformation(extent={{-180,-60},{-140,-20}}),
+        iconTransformation(extent={{-180,-60},{-140,-20}})));
+  Modelica.Blocks.Math.BooleanToReal booToReaPum1(realTrue=1, y(start=0))
+    "Pump signal" annotation (Placement(transformation(
+        extent={{10,-10},{-10,10}},
+        rotation=180,
+        origin={-110,-40})));
   Modelica.Blocks.Logical.Switch switch1
-    annotation (Placement(transformation(extent={{-62,-14},{-42,6}})));
+    annotation (Placement(transformation(extent={{-74,-4},{-54,16}})));
   Modelica.Blocks.Sources.BooleanExpression booleanExpression(y=have_controller)
-    annotation (Placement(transformation(extent={{-118,-14},{-98,6}})));
-  Modelica.Blocks.Sources.RealExpression realExpression(y=setPoi/(120*per.Freq/
-        per.P))
-    annotation (Placement(transformation(extent={{-120,-28},{-100,-8}})));
+    annotation (Placement(transformation(extent={{-128,-10},{-108,10}})));
+  Modelica.Blocks.Sources.RealExpression realExpression(y=(setPoi*booToReaPum1.y)
+        /(120*per.Freq/per.P))
+    annotation (Placement(transformation(extent={{-128,-26},{-108,-6}})));
 equation
   // Assign values for motor model calculation from electrical interface
   theta_s = PhaseSystem.thetaRef(terminal.theta);
@@ -189,51 +197,55 @@ equation
   connect(i_qs.y, current_Block.i_qs)
     annotation (Line(points={{41,24},{50,24},{50,32},{58,32}},
                                                color={0,0,127}));
-  connect(Vrms.y, VFDvol.u1) annotation (Line(points={{-55,56},{-28,56},{-28,36},
-          {-22,36}}, color={0,0,127}));
-  connect(torSpe.V_rms, VFDvol.y) annotation (Line(points={{13.4286,-0.857143},
-          {12,-0.857143},{12,30},{1,30}},
+  connect(Vrms.y, VFDvol.u1) annotation (Line(points={{-55,56},{-42,56}},
+                     color={0,0,127}));
+  connect(torSpe.V_rms, VFDvol.y) annotation (Line(points={{9.42857,-16.8571},{
+          -14,-16.8571},{-14,8},{-16,8},{-16,44},{-14,44},{-14,50},{-19,50}},
                          color={0,0,127}));
   connect(torSpe.f, VFDfre.y)
-    annotation (Line(points={{19.1429,-9.42857},{10.0714,-9.42857},{10.0714,-10},
-          {1,-10}},                            color={0,0,127}));
-  connect(speBlo.tau_m, tau_m) annotation (Line(points={{22,-69},{-132,-69},{-132,
-          -80},{-158,-80}}, color={0,0,127}));
+    annotation (Line(points={{15.1429,-25.4286},{-19,-25.4286},{-19,0}},
+                                               color={0,0,127}));
+  connect(speBlo.tau_m, tau_m) annotation (Line(points={{36,-69},{-28,-69},{-28,
+          -84},{-132,-84},{-132,-80},{-160,-80}},
+                            color={0,0,127}));
   connect(angFre1.y, integrator.u) annotation (Line(points={{-55,70},{-4,70}},
                                  color={0,0,127}));
-  connect(speBlo.omega, angFre.y) annotation (Line(points={{22,-75.6},{22,-74},{
-          -8,-74},{-8,-88},{-13,-88}},        color={0,0,127}));
+  connect(speBlo.omega, angFre.y) annotation (Line(points={{36,-75.6},{36,-74},{
+          12,-74},{12,-84},{7,-84}},          color={0,0,127}));
   connect(VFD_Equivalent_Freq.u, setPoi)
     annotation (Line(points={{-122,70},{-158,70}}, color={0,0,127}));
-  connect(VFD.u_s, setPoi) annotation (Line(points={{-104,24},{-132,24},{
-          -132,70},{-158,70}}, color={0,0,127}));
-  connect(VFD.u_m, mea) annotation (Line(points={{-92,12},{-92,6},{-132,6},
-          {-132,20},{-158,20}}, color={0,0,127}));
+  connect(VFD.u_s, setPoi) annotation (Line(points={{-116,26},{-132,26},{-132,
+          70},{-158,70}},      color={0,0,127}));
+  connect(VFD.u_m, mea) annotation (Line(points={{-104,14},{-104,6},{-132,6},{-132,
+          20},{-160,20}},       color={0,0,127}));
   connect(speed.flange, shaft)
-    annotation (Line(points={{80,0},{100,0}}, color={0,0,0}));
-  connect(torSpe.omega_r, speBlo.omega_r) annotation (Line(points={{13.4286,-18},
-          {4,-18},{4,-26},{52,-26},{52,-62.29},{45.9,-62.29}},
+    annotation (Line(points={{88,0},{100,0}}, color={0,0,0}));
+  connect(torSpe.omega_r, speBlo.omega_r) annotation (Line(points={{9.42857,-34},
+          {8,-34},{8,-42},{64,-42},{64,-62.29},{59.9,-62.29}},
                                                          color={0,0,127}));
-  connect(speBlo.omega_r1, speed.w_ref) annotation (Line(points={{45.9,-69.33},{
-          45.9,-68},{56,-68},{56,0},{62.4,0}},          color={0,0,127}));
+  connect(speBlo.omega_r1, speed.w_ref) annotation (Line(points={{59.9,-69.33},{
+          59.9,-68},{66,-68},{66,0},{70.4,0}},          color={0,0,127}));
   connect(fre.y, VFDfre.u2)
-    annotation (Line(points={{-49,-50},{-28,-50},{-28,-16},{-22,-16}},
+    annotation (Line(points={{-53,-40},{-48,-40},{-48,-6},{-42,-6}},
                                                  color={0,0,127}));
-  connect(VFDfre.u1, VFDvol.u2) annotation (Line(points={{-22,-4},{-28,-4},{-28,
-          24},{-22,24}},
-                     color={0,0,127}));
-  connect(torSpe.tau_e, speBlo.tau_e) annotation (Line(points={{44.8571,
-          -9.42857},{44.8571,-8},{50,-8},{50,-42},{16,-42},{16,-62.4},{22,-62.4}},
+  connect(torSpe.tau_e, speBlo.tau_e) annotation (Line(points={{40.8571,
+          -25.4286},{40.8571,-24},{46,-24},{46,-54},{30,-54},{30,-62.4},{36,
+          -62.4}},
         color={0,0,127}));
-  connect(switch1.y, VFDvol.u2) annotation (Line(points={{-41,-4},{-28,-4},{-28,
-          24},{-22,24}}, color={0,0,127}));
-  connect(switch1.u1, VFD.y) annotation (Line(points={{-64,4},{-74,4},{-74,24},{
-          -81,24}}, color={0,0,127}));
-  connect(booleanExpression.y, switch1.u2)
-    annotation (Line(points={{-97,-4},{-64,-4}}, color={255,0,255}));
-  connect(realExpression.y, switch1.u3) annotation (Line(points={{-99,-18},{-72,
-          -18},{-72,-12},{-64,-12}}, color={0,0,127}));
- annotation(Icon(coordinateSystem(preserveAspectRatio=true,
+  connect(booToReaPum1.u, u)
+    annotation (Line(points={{-122,-40},{-160,-40}}, color={255,0,255}));
+  connect(switch1.y, VFDfre.u1)
+    annotation (Line(points={{-53,6},{-42,6}}, color={0,0,127}));
+  connect(switch1.u1, VFD.y) annotation (Line(points={{-76,14},{-86,14},{-86,26},
+          {-93,26}}, color={0,0,127}));
+  connect(booleanExpression.y, switch1.u2) annotation (Line(points={{-107,0},{-84,
+          0},{-84,6},{-76,6}}, color={255,0,255}));
+  connect(realExpression.y, switch1.u3) annotation (Line(points={{-107,-16},{-84,
+          -16},{-84,-2},{-76,-2}}, color={0,0,127}));
+  connect(VFDvol.u2, VFDfre.u1) annotation (Line(points={{-42,44},{-46,44},{
+          -46,6},{-42,6}}, color={0,0,127}));
+  annotation (
+    Icon(coordinateSystem(preserveAspectRatio=true,
         extent={{-140,-100},{100,100}}), graphics={
         Rectangle(
           origin={0,0},
@@ -291,4 +303,4 @@ within its work area.
 </ul>
 </html>"),
     Diagram(coordinateSystem(extent={{-140,-100},{100,100}})));
-end SquirrelCageDrive;
+end SquirrelCageDrive_OnOff;

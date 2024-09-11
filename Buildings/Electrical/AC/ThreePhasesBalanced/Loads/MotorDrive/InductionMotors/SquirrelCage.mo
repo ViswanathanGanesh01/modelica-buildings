@@ -1,82 +1,46 @@
-within Buildings.Electrical.AC.ThreePhasesBalanced.Loads.MotorDrive.InductionMotors;
-model SquirrelCage "Squirrel cage type induction motor with electrical interface"
+within Buildings.Electrical.AC.ThreePhasesBalanced.Loads.MotorDrive.InductionMotors1;
+model SquirrelCage
+  "Squirrel cage type induction motor with electrical interface"
   extends Buildings.Electrical.Interfaces.PartialOnePort(
-    redeclare package PhaseSystem = Buildings.Electrical.PhaseSystems.OnePhase,
-    redeclare replaceable Interfaces.Terminal_n terminal);
+   redeclare package PhaseSystem =
+        Buildings.Electrical.PhaseSystems.OnePhase,
+   redeclare replaceable Interfaces.Terminal_n terminal);
+   replaceable parameter Buildings.Electrical.AC.ThreePhasesBalanced.Loads.MotorDrive.InductionMotors1.Data.Generic per
+    constrainedby
+    Buildings.Electrical.AC.ThreePhasesBalanced.Loads.MotorDrive.InductionMotors1.Data.Generic
+    "Record with performance data"
+    annotation (choicesAllMatching=true,
+      Placement(transformation(extent={{52,60},{72,80}})));
+  parameter Integer P=per.P "Number of poles";
+  parameter Real J=per.J "Moment of inertia";
+  parameter Real Lr=per.Lr "Rotor inductance [H]";
+  parameter Real Ls=per.Ls "Stator inductance [H]";
+  parameter Real Lm=per.Lm "Mutual inductance [H]";
+  parameter Real Rr=per.Rr "Rotor resistance [ohm]";
+  parameter Real Rs=per.Rs "Stator resistance [ohm]";
+            Real i_rms "RMS current";
+            Real v_rms "RMS voltage";
+            Real pow_gap "Power gap";
 
-  parameter Integer pole=4 "Number of pole pairs";
-  parameter Modelica.Units.SI.Inertia J(min=0)=2
-    "Moment of inertia";
-  parameter Modelica.Units.SI.Resistance R_s=0.641
-    "Electric resistance of stator";
-  parameter Modelica.Units.SI.Resistance R_r=0.332
-    "Electric resistance of rotor";
-  parameter Modelica.Units.SI.Reactance X_s=1.106
-    "Complex component of the impedance of stator";
-  parameter Modelica.Units.SI.Reactance X_r=0.464
-    "Complex component of the impedance of rotor";
-  parameter Modelica.Units.SI.Reactance X_m=26.3
-    "Complex component of the magnetizing reactance";
-    parameter Real PF=0.95;
-
-
-  Real s(min=0,max=1) "Motor slip";
-  Real v_rms "RMS voltage";
-  Real Apparent_Pow;
-  Modelica.Units.SI.Power Acti_pow "Active Power";
-  Modelica.Units.SI.Power Reac_pow "Reactive Power";
-
-  Modelica.Units.SI.Torque tau_e
-    "Electromagenetic torque of rotor";
-  Modelica.Units.SI.Power pow_gap
-    "Air gap power";
   Modelica.Units.SI.Angle theta_s
     "Supply voltage phase angel";
   Modelica.Units.SI.AngularVelocity omega
     "Supply voltage angular frequency";
-  Modelica.Units.SI.AngularVelocity omega_r
-    "Rotor angular frequency";
+
   Modelica.Units.SI.Voltage v[:] = terminal.v
     "Voltage vector";
   Modelica.Units.SI.Current i[:] = terminal.i
     "Current vector";
-  //Modelica.Units.SI.Resistance Req "Equivelant resistance";
-  //Modelica.Units.SI.Reactance Xeq "Equivelant reactance";
+  final Modelica.Blocks.Sources.RealExpression Vrms(y=v_rms) "RMS voltage"
+    annotation (Placement(transformation(extent={{-60,10},{-40,30}})));
 
-  final Modelica.Blocks.Sources.RealExpression w_r(y=omega_r)
-    "Rotor speed"
-    annotation (Placement(transformation(extent={{-60,-40},{-40,-20}})));
   final Modelica.Blocks.Sources.RealExpression fre(y=omega/(2*Modelica.Constants.pi))
     "Supply voltage frequency"
-    annotation (Placement(transformation(extent={{-60,-10},{-40,10}})));
-  final Modelica.Blocks.Sources.RealExpression Vrms(y=v_rms) "RMS voltage"
-    annotation (Placement(transformation(extent={{-60,20},{-40,40}})));
-  Modelica.Mechanics.Rotational.Sources.Speed speed(exact=true) "Speed connector"
-    annotation (Placement(transformation(extent={{60,-10},{80,10}})));
-  Modelica.Mechanics.Rotational.Interfaces.Flange_b shaft "Mechanical connector"
-    annotation (Placement(transformation(extent={{90,-10},{110,10}})));
-  Buildings.Electrical.AC.ThreePhasesBalanced.Loads.MotorDrive.InductionMotors.BaseClasses.MotorMachineInterface torSpe(
-    final pole=pole,
-    final R_s=R_s,
-    final R_r=R_r,
-    final X_s=X_s,
-    final X_r=X_r,
-    final X_m=X_m)
-  "Motor machine interface"
-    annotation (Placement(transformation(extent={{-10,-10},{10,10}})));
+    annotation (Placement(transformation(extent={{-64,-10},{-44,10}})));
 
-  Modelica.Blocks.Interfaces.RealOutput P(final quantity = "Power", final unit = "W")
-    "Real power"
-    annotation (Placement(transformation(extent={{100,60},{140,100}}),
-        iconTransformation(extent={{100,60},{140,100}})));
-  Modelica.Blocks.Interfaces.RealOutput Q(final quantity = "Power", final unit = "var")
-    "Reactive power"
-    annotation (Placement(transformation(extent={{100,20},{140,60}}),
-        iconTransformation(extent={{100,20},{140,60}})));
   Modelica.Blocks.Interfaces.RealInput tau_m(unit="N.m")
     "Load torque"
-    annotation (Placement(
-        transformation(
+    annotation (Placement(transformation(
         extent={{-20,-20},{20,20}},
         rotation=0,
         origin={-120,-80}),
@@ -85,43 +49,82 @@ model SquirrelCage "Squirrel cage type induction motor with electrical interface
         rotation=0,
         origin={-120,-80})));
 
-initial equation
-  omega_r=0;
+  InductionMotors1.BaseClasses.CurrentBlock current_Block
+    annotation (Placement(transformation(extent={{60,30},{80,50}})));
+  InductionMotors1.BaseClasses.SpeedBlock speBlo(final J=J, final P=P)
+    annotation (Placement(transformation(extent={{-10,-66},{10,-44}})));
+  Modelica.Blocks.Continuous.Integrator integrator
+    annotation (Placement(transformation(extent={{-2,60},{18,80}})));
+  Modelica.Blocks.Sources.RealExpression i_ds(y=torSpe.motMod.i_ds)
+    annotation (
+      Placement(transformation(extent={{-10,-12},{10,12}}, origin={30,40})));
+  Modelica.Blocks.Sources.RealExpression i_qs(y=torSpe.motMod.i_qs)
+    annotation (
+      Placement(transformation(extent={{-10,-12},{10,12}}, origin={30,24})));
+  Modelica.Blocks.Sources.RealExpression eleTor(y=torSpe.tau_e)
+    annotation (
+      Placement(transformation(extent={{-10,-12},{10,12}}, origin={-32,-42})));
+  Modelica.Blocks.Sources.RealExpression angFre(y=omega)
+    "Supply voltage angular frequency" annotation (Placement(transformation(
+          extent={{-10,-12},{10,12}}, origin={-32,-68})));
+  InductionMotors1.BaseClasses.MotorMachineInterface torSpe(
+    final P=P,
+    final Lm=Lm,
+    final J=J,
+    final Lr=Lr,
+    final Ls=Ls,
+    final Rr=Rr,
+    final Rs=Rs)
+    annotation (Placement(transformation(extent={{-10,-10},{10,10}})));
+  Modelica.Blocks.Sources.RealExpression angFre1(y=omega)
+    "Supply voltage angular frequency" annotation (Placement(transformation(
+          extent={{-10,-12},{10,12}}, origin={-30,70})));
+  Modelica.Mechanics.Rotational.Sources.Speed speed(exact=true)
+    "Speed connector"
+    annotation (Placement(transformation(extent={{64,-8},{80,8}})));
+  Modelica.Mechanics.Rotational.Interfaces.Flange_b shaft
+    "Mechanical connector"
+    annotation (Placement(transformation(extent={{90,-10},{110,10}})));
 
 equation
   // Assign values for motor model calculation from electrical interface
-  theta_s = PhaseSystem.thetaRef(terminal.theta);
+  theta_s = PhaseSystem.thetaRef(terminal.theta) "phase angle";
   omega = der(theta_s);
-  s = torSpe.s;
-  tau_e = torSpe.tau_e;
   v_rms=sqrt(v[1]^2+v[2]^2);
-
-  // Motor-load torque balance equation
-  der(omega_r) = (tau_e-tau_m)/J;
-
-  // Equations to calculate power consumption
-  pow_gap = torSpe.omega_s*tau_e;
-  Acti_pow = pow_gap*PF;
-
-
-Apparent_Pow = terminal.v[1]*terminal.i[1]/PF;
-Reac_pow = sqrt(Apparent_Pow^2 - Acti_pow^2);
-
+  pow_gap = speBlo.N/9.55*torSpe.tau_e;
   // Equations to calculate current
-  i[1] = (v[1]*Acti_pow + v[2]*Reac_pow)/(v[1]^2 + v[2]^2);
-  i[2] = (v[1]*Reac_pow + v[2]*Acti_pow)/(v[1]^2 + v[2]^2);
-
-  connect(w_r.y, torSpe.omega_r) annotation (Line(points={{-39,-30},{-20,-30},
-          {-20,-4},{-12,-4}}, color={0,0,127}));
-  connect(fre.y, torSpe.f) annotation (Line(points={{-39,0},{-12,0}},
-          color={0,0,127}));
-  connect(Vrms.y, torSpe.V_rms) annotation (Line(points={{-39,30},{-20,30},
-          {-20,4},{-12,4}}, color={0,0,127}));
-  connect(shaft, speed.flange) annotation (Line(points={{100,0},{80,0}},
-          color={0,0,0}));
-  connect(w_r.y, speed.w_ref) annotation (Line(points={{-39,-30},{40,-30},{40,0},
-          {58,0}}, color={0,0,127}));
-  annotation(Icon(coordinateSystem(preserveAspectRatio=true,
+  i[1] = 2*(sqrt(2)/sqrt(3))*torSpe.motMod.i_ds;
+  i[2] =(sqrt(3)/sqrt(2))*torSpe.motMod.i_qs;
+  i_rms=sqrt(i[1]^2+i[2]^2);
+  connect(integrator.y,current_Block. wt) annotation (Line(points={{19,70},{50,70},
+          {50,48},{58,48}},        color={0,0,127}));
+  connect(i_ds.y, current_Block.i_ds) annotation (Line(points={{41,40},{58,40}},
+                        color={0,0,127}));
+  connect(i_qs.y, current_Block.i_qs)
+    annotation (Line(points={{41,24},{50,24},{50,32},{58,32}},
+                                               color={0,0,127}));
+  connect(integrator.u, angFre1.y) annotation (Line(points={{-4,70},{-19,70}},
+                         color={0,0,127}));
+  connect(speBlo.tau_e, eleTor.y) annotation (Line(points={{-12,-48.4},{-21,-48.4},
+          {-21,-42}},           color={0,0,127}));
+  connect(speBlo.tau_m, tau_m) annotation (Line(points={{-12,-55},{-60,-55},{-60,
+          -80},{-120,-80}}, color={0,0,127}));
+  connect(speBlo.omega, angFre.y) annotation (Line(points={{-12,-61.6},{-16,-61.6},
+          {-16,-68},{-21,-68}},           color={0,0,127}));
+  connect(torSpe.omega_r, speBlo.omega_r) annotation (Line(points={{-18.5714,
+          -10},{-40,-10},{-40,-18},{18,-18},{18,-48.29},{11.9,-48.29}},
+                                                             color={0,0,127}));
+  connect(fre.y, torSpe.f)
+    annotation (Line(points={{-43,0},{-26,0},{-26,-1.42857},{-12.8571,-1.42857}},
+                                               color={0,0,127}));
+  connect(Vrms.y, torSpe.V_rms) annotation (Line(points={{-39,20},{-18,20},{-18,
+          7.14286},{-18.5714,7.14286}},
+                       color={0,0,127}));
+  connect(speed.flange, shaft)
+    annotation (Line(points={{80,0},{100,0}}, color={0,0,0}));
+  connect(speed.w_ref, speBlo.omega_r) annotation (Line(points={{62.4,0},{40,0},
+          {40,-48},{26,-48},{26,-48.29},{11.9,-48.29}}, color={0,0,127}));
+ annotation(Icon(coordinateSystem(preserveAspectRatio=true,
         extent={{-100,-100},{100,100}}), graphics={
         Rectangle(
           origin={0,0},
@@ -155,76 +158,14 @@ Reac_pow = sqrt(Apparent_Pow^2 - Acti_pow^2);
           fillColor={255,255,255},
           fillPattern=FillPattern.None,
           textString="%name")}),
-        defaultComponentName="mot",
+        defaultComponentName="motDri",
     Documentation(info="<html>
-<p>
-This is a simplified model of a squirrel cage type induction motor with electrical 
-and mechanical interface, which is based on the per-phase equivalent circuit model 
-for an induction motor. The model inputs include load torque, as well as frequency 
-and voltage from the power supply system at the electrical connector as the AC interface.
-Besides the electromagnetic torque equation from 
-<a href=\"modelica://Buildings.Electrical.AC.ThreePhasesBalanced.Loads.MotorDrive.InductionMotors.BaseClasses.MotorMachineInterface\">
-Buildings.Electrical.AC.ThreePhasesBalanced.Loads.MotorDrive.InductionMotors.
-BaseClasses.MotorMachineInterface</a>, main governing equations used to 
-construct the model are as follows:
-</p>
-<p>
-The motor-load torque balance equation:
-</p>
-<p align=\"center\" style=\"font-style:italic;\">dW<sub>r</sub>&nbsp;/dt&nbsp;=&nbsp;
-(tau<sub>e</sub>&nbsp;-&nbsp;tau<sub>m</sub>)&nbsp;/&nbsp;J
-</p>
-<p>
-Where, the <i>W<sub>r</sub></i> is angular velocity of rotor [rad/s], 
-<i>tau<sub>e</sub></i> is electromagnetic torque generated by motor [N.m], 
-and <i>tau<sub>m</sub></i> is load torque [N.m], <i>J</i> is motor inertia [kg.m2].
-</p>
-<p>
-The active power consumed by the motor:
-</p>
-<p align=\"center\" style=\"font-style:italic;\">P&nbsp;=&nbsp;n&nbsp;*&nbsp;
-(V<sub>rms</sub>)<sup>2</sup>&nbsp;*&nbsp;R<sub>eq</sub>&nbsp;/&nbsp;
-[(R<sub>eq</sub>)<sup>2</sup>&nbsp;+&nbsp;(X<sub>eq</sub>)<sup>2</sup>]
-</p>
-<p>
-The reactive power consumed by the motor:
-</p>
-<p align=\"center\" style=\"font-style:italic;\">Q&nbsp;=&nbsp;n&nbsp;*&nbsp;
-(V<sub>rms</sub>)<sup>2</sup>&nbsp;*&nbsp;X<sub>eq</sub>&nbsp;/&nbsp;
-[(R<sub>eq</sub>)<sup>2</sup>&nbsp;+&nbsp;(X<sub>eq</sub>)<sup>2</sup>]
-</p>
-<p>
-<i>R<sub>eq</sub></i> and <i>X<sub>eq</sub></i> are the equivalent resistance 
-and reactance of induction motor per-phase equivalent circuit, can be 
-calculated as follows: 
-</p>
-<p align=\"center\" style=\"font-style:italic;\">R<sub>eq</sub>&nbsp;=&nbsp;
-R<sub>s</sub>&nbsp;+&nbsp;(X<sub>m</sub>)<sup>2</sup>&nbsp;*&nbsp;R<sub>r</sub>&nbsp;
-*&nbsp;s&nbsp;/&nbsp;[(R<sub>r</sub>)<sup>2</sup>&nbsp;+&nbsp;(s)<sup>2</sup>&nbsp;
-*&nbsp;(X<sub>r</sub>&nbsp;+&nbsp;X<sub>m</sub>)<sup>2</sup>]
-</p>
-<p align=\"center\" style=\"font-style:italic;\">X<sub>eq</sub>&nbsp;=&nbsp;
-X<sub>s</sub>&nbsp;+&nbsp;X<sub>m</sub>&nbsp;*&nbsp;[(R<sub>r</sub>)<sup>2</sup>&nbsp;
-+&nbsp;(s&nbsp;*&nbsp;X<sub>r</sub>)<sup>2</sup>&nbsp;+&nbsp;(s)<sup>2</sup>&nbsp;
-*&nbsp;X<sub>r</sub>&nbsp;*&nbsp;X<sub>m</sub>]&nbsp;/&nbsp;[(R<sub>r</sub>)<sup>2</sup>&nbsp;
-+&nbsp;(s)<sup>2</sup>&nbsp;*&nbsp;(X<sub>r</sub>&nbsp;+&nbsp;X<sub>m</sub>)<sup>2</sup>]
-</p>
-<p>
-Where, the subscripts <i>s</i>, <i>r</i> and <i>m</i> represent the stator, 
-rotor and magnetizing part, respectively. The circuit diagram is found in 
-<a href=\"modelica://Buildings.Electrical.AC.ThreePhasesBalanced.Loads.MotorDrive.InductionMotors.BaseClasses.MotorMachineInterface\">
-MotorDrive.InductionMotors.BaseClasses.MotorMachineInterface</a>.
-</p>
+<p>This model implements an induction motor model. The model takes the set point of load torque, 
+as an input and simulates a transient simulation when the motor is operating in its rated speed and setpoint load torque. </p>
 </html>", revisions="<html>
 <ul>
-<li>
-October 15, 2021, by Mingzhe Liu:<br/>
-Refactored implementation to add mechanical interface and integrate inertia. 
-</li>
-<li>
-March 6, 2019, by Yangyang Fu:<br/>
-First implementation.
-</li>
+<li>May 07, 2024, by Viswanathan Ganesh and Zhanwei He:<br>First Implementation. </li>
 </ul>
-</html>"));
+</html>
+"));
 end SquirrelCage;

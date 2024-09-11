@@ -83,28 +83,22 @@ model HeatPump "This example shows how to use the motor coupled heat pump model"
 equation
   connect(TCon_in.y,sou1. T_in) annotation (Line(points={{-69,34},{-62,34}},
                               color={0,0,127}, smooth=Smooth.None));
-  connect(hea.port_a2, sou2.ports[1]) annotation (Line(points={{10,-7.77778},{
-          20,-7.77778},{20,-10},{40,-10}},
-                              color={0,127,255}));
+  connect(hea.port_a2, sou2.ports[1]) annotation (Line(points={{10,-6},{20,-6},
+          {20,-10},{40,-10}}, color={0,127,255}));
   connect(sou1.ports[1], hea.port_a1) annotation (Line(points={{-40,30},{-30,30},
-          {-30,5.55556},{-10,5.55556}},
-                            color={0,127,255}));
+          {-30,6},{-10,6}}, color={0,127,255}));
   connect(senTem.port_a, hea.port_b1) annotation (Line(points={{40,30},{20,30},
-          {20,5.55556},{10,5.55556}},
-                          color={0,127,255}));
+          {20,6},{10,6}}, color={0,127,255}));
   connect(Sou.terminal, hea.terminal) annotation (Line(points={{10,60},{10,32},
           {0,32},{0,10}}, color={0,120,120}));
-  connect(TSet.y, hea.setPoi) annotation (Line(points={{-39,70},{-24,70},{-24,
-          8.88889},{-11,8.88889}},
-                    color={0,0,127}));
+  connect(TSet.y, hea.setPoi) annotation (Line(points={{-39,70},{-24,70},{-24,9},
+          {-11,9}}, color={0,0,127}));
   connect(senTem.T, hea.meaPoi) annotation (Line(points={{50,41},{50,96},{-18,
-          96},{-18,2.22222},{-11,2.22222}},
-                                     color={0,0,127}));
+          96},{-18,3},{-11,3}},      color={0,0,127}));
   connect(sou2.T_in, TEva_in.y) annotation (Line(points={{62,-6},{69,-6}},
                               color={0,0,127}));
-  connect(hea.port_b2, sin2.ports[1]) annotation (Line(points={{-10,-7.77778},{
-          -30,-7.77778},{-30,-30},{-40,-30}},
-                                color={0,127,255}));
+  connect(hea.port_b2, sin2.ports[1]) annotation (Line(points={{-10,-6},{-30,-6},
+          {-30,-30},{-40,-30}}, color={0,127,255}));
   connect(senTem.port_b, sin1.ports[1]) annotation (Line(points={{60,30},{70,30}},
                             color={0,127,255}));
   annotation (experiment(Tolerance=1e-6, StopTime=3600),

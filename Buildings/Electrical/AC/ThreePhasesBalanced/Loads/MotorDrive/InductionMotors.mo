@@ -1,15 +1,16 @@
 ﻿within Buildings.Electrical.AC.ThreePhasesBalanced.Loads.MotorDrive;
-package InductionMotors  "Induction motor"
+package InductionMotors
   model SquirrelCage
     "Squirrel cage type induction motor with electrical interface"
     extends Buildings.Electrical.Interfaces.PartialOnePort(
      redeclare package PhaseSystem =
           Buildings.Electrical.PhaseSystems.OnePhase,
      redeclare replaceable Interfaces.Terminal_n terminal);
-     replaceable parameter Buildings.Electrical.AC.ThreePhasesBalanced.Loads.MotorDrive.InductionMotors.Data.Generic per
-      constrainedby Buildings.Electrical.AC.ThreePhasesBalanced.Loads.MotorDrive.InductionMotors.Data.Generic
-      "Record with performance data"
-      annotation (choicesAllMatching=true,
+     replaceable parameter
+      Buildings.Electrical.AC.ThreePhasesBalanced.Loads.MotorDrive.InductionMotors.Data.Generic
+      per constrainedby
+      Buildings.Electrical.AC.ThreePhasesBalanced.Loads.MotorDrive.InductionMotors.Data.Generic
+      "Record with performance data" annotation (choicesAllMatching=true,
         Placement(transformation(extent={{52,60},{72,80}})));
     parameter Integer P=per.P "Number of poles";
     parameter Real J=per.J "Moment of inertia";
@@ -49,9 +50,9 @@ package InductionMotors  "Induction motor"
           rotation=0,
           origin={-120,-80})));
 
-    BaseClasses.CurrentBlock current_Block
+    InductionMotors.BaseClasses.CurrentBlock current_Block
       annotation (Placement(transformation(extent={{60,30},{80,50}})));
-    BaseClasses.SpeedBlock speBlo(final J=J, final P=P)
+    InductionMotors.BaseClasses.SpeedBlock speBlo(final J=J, final P=P)
       annotation (Placement(transformation(extent={{-10,-66},{10,-44}})));
     Modelica.Blocks.Continuous.Integrator integrator
       annotation (Placement(transformation(extent={{-2,60},{18,80}})));
@@ -67,7 +68,7 @@ package InductionMotors  "Induction motor"
     Modelica.Blocks.Sources.RealExpression angFre(y=omega)
       "Supply voltage angular frequency" annotation (Placement(transformation(
             extent={{-10,-12},{10,12}}, origin={-32,-68})));
-    BaseClasses.MotorMachineInterface torSpe(
+    InductionMotors.BaseClasses.MotorMachineInterface torSpe(
       final P=P,
       final Lm=Lm,
       final J=J,
@@ -176,11 +177,11 @@ as an input and simulates a transient simulation when the motor is operating in 
      redeclare package PhaseSystem =
           Buildings.Electrical.PhaseSystems.OnePhase,
      redeclare replaceable Interfaces.Terminal_n terminal);
-       replaceable parameter Buildings.Electrical.AC.ThreePhasesBalanced.Loads.MotorDrive.InductionMotors.Data.Generic per
-      constrainedby
+       replaceable parameter
       Buildings.Electrical.AC.ThreePhasesBalanced.Loads.MotorDrive.InductionMotors.Data.Generic
-      "Record with performance data"
-      annotation (choicesAllMatching=true,
+      per constrainedby
+      Buildings.Electrical.AC.ThreePhasesBalanced.Loads.MotorDrive.InductionMotors.Data.Generic
+      "Record with performance data" annotation (choicesAllMatching=true,
         Placement(transformation(extent={{52,60},{72,80}})));
     parameter Integer P=per.P "Number of poles";
     parameter Real J=per.J "Moment of inertia";
@@ -287,9 +288,9 @@ as an input and simulates a transient simulation when the motor is operating in 
           rotation=0,
           origin={-158,-80})));
 
-    BaseClasses.CurrentBlock current_Block
+    InductionMotors.BaseClasses.CurrentBlock current_Block
       annotation (Placement(transformation(extent={{60,30},{80,50}})));
-    BaseClasses.SpeedBlock speBlo(final J=J, final P=P)
+    InductionMotors.BaseClasses.SpeedBlock speBlo(final J=J, final P=P)
       annotation (Placement(transformation(extent={{24,-80},{44,-58}})));
     Modelica.Blocks.Continuous.Integrator integrator
       annotation (Placement(transformation(extent={{-2,60},{18,80}})));
@@ -302,7 +303,7 @@ as an input and simulates a transient simulation when the motor is operating in 
     Modelica.Blocks.Sources.RealExpression angFre(y=switch1.y*omega)
       "Supply voltage angular frequency" annotation (Placement(transformation(
             extent={{-10,-12},{10,12}}, origin={-24,-88})));
-    BaseClasses.MotorMachineInterface torSpe(
+    InductionMotors.BaseClasses.MotorMachineInterface torSpe(
       final P=P,
       final J=J,
       final Lr=Lr,
@@ -448,8 +449,8 @@ motor.
 </p>
 <p>
 The model is identical to 
-<a href=\"modelica://Buildings.Electrical.AC.ThreePhasesBalanced.Loads.MotorDrive.InductionMotors.SquirrelCage\">
-Buildings.Electrical.AC.ThreePhasesBalanced.Loads.MotorDrive.InductionMotors.
+<a href=\"modelica://Buildings.Electrical.AC.ThreePhasesBalanced.Loads.MotorDrive.InductionMotors1.SquirrelCage\">
+Buildings.Electrical.AC.ThreePhasesBalanced.Loads.MotorDrive.InductionMotors1.
 SquirrelCage</a>, except that it takes the set point, as an input and adjust 
 the motor torque output to meet the set point. This set point is maintained 
 if the motor allows sufficient torque to meet the load requirement. The built-in 
@@ -466,16 +467,16 @@ within its work area.
   end SquirrelCageDrive;
 
   model SquirrelCageDrive_OnOff
-    "Squirrel cage type induction motor with electrical interface and closed loop built-in speed control and boolean control "
+    "Squirrel cage type induction motor with electrical interface and closed loop built-in speed control"
     extends Buildings.Electrical.Interfaces.PartialOnePort(
      redeclare package PhaseSystem =
           Buildings.Electrical.PhaseSystems.OnePhase,
      redeclare replaceable Interfaces.Terminal_n terminal);
-       replaceable parameter Buildings.Electrical.AC.ThreePhasesBalanced.Loads.MotorDrive.InductionMotors.Data.Generic per
-      constrainedby
+       replaceable parameter
       Buildings.Electrical.AC.ThreePhasesBalanced.Loads.MotorDrive.InductionMotors.Data.Generic
-      "Record with performance data"
-      annotation (choicesAllMatching=true,
+      per constrainedby
+      Buildings.Electrical.AC.ThreePhasesBalanced.Loads.MotorDrive.InductionMotors.Data.Generic
+      "Record with performance data" annotation (choicesAllMatching=true,
         Placement(transformation(extent={{52,60},{72,80}})));
     parameter Integer P=per.P "Number of poles";
     parameter Real J=per.J "Moment of inertia";
@@ -582,9 +583,9 @@ within its work area.
           rotation=0,
           origin={-160,-80})));
 
-    BaseClasses.CurrentBlock current_Block
+    InductionMotors.BaseClasses.CurrentBlock current_Block
       annotation (Placement(transformation(extent={{60,30},{80,50}})));
-    BaseClasses.SpeedBlock speBlo(final J=J, final P=P)
+    InductionMotors.BaseClasses.SpeedBlock speBlo(final J=J, final P=P)
       annotation (Placement(transformation(extent={{38,-80},{58,-58}})));
     Modelica.Blocks.Continuous.Integrator integrator
       annotation (Placement(transformation(extent={{-2,60},{18,80}})));
@@ -597,7 +598,7 @@ within its work area.
     Modelica.Blocks.Sources.RealExpression angFre(y=switch1.y*omega)
       "Supply voltage angular frequency" annotation (Placement(transformation(
             extent={{-10,-12},{10,12}}, origin={-4,-84})));
-    BaseClasses.MotorMachineInterface torSpe(
+    InductionMotors.BaseClasses.MotorMachineInterface torSpe(
       final P=P,
       final J=J,
       final Lr=Lr,
@@ -754,8 +755,8 @@ motor.
 </p>
 <p>
 The model is identical to 
-<a href=\"modelica://Buildings.Electrical.AC.ThreePhasesBalanced.Loads.MotorDrive.InductionMotors.SquirrelCage\">
-Buildings.Electrical.AC.ThreePhasesBalanced.Loads.MotorDrive.InductionMotors.
+<a href=\"modelica://Buildings.Electrical.AC.ThreePhasesBalanced.Loads.MotorDrive.InductionMotors1.SquirrelCage\">
+Buildings.Electrical.AC.ThreePhasesBalanced.Loads.MotorDrive.InductionMotors1.
 SquirrelCage</a>, except that it takes the set point, as an input and adjust 
 the motor torque output to meet the set point. This set point is maintained 
 if the motor allows sufficient torque to meet the load requirement. The built-in 
@@ -771,8 +772,8 @@ within its work area.
       Diagram(coordinateSystem(extent={{-140,-100},{100,100}})));
   end SquirrelCageDrive_OnOff;
 
-  package Examples "Examples for the simulation of induction motor"
-
+  package Examples
+   extends Modelica.Icons.ExamplesPackage;
     model SquirrelCageDrive
       "This example shows how to use the squirrel cage induction motor with closed loop built-in speed control"
 
@@ -856,11 +857,11 @@ An example of induction motor drive with closed loop variable speed controller.
      Ns = (120*sou.f)/motDri.P;
      slip =((Ns-motDri.speBlo.N)/Ns);
      Loss = abs(sou.P.real - motDri.pow_gap);
-      if (sou.P.real) <= 0 then
+    if (sou.P.real) <=0 then
        Efficiency = 0;
-      else
+    else
        Efficiency = ((motDri.pow_gap)/(sou.P.real))*100;
-      end if;
+    end if;
 
       connect(motDri.terminal, sou.terminal)
         annotation (Line(points={{12,20},{10,20},{10,40}}, color={0,120,120}));
@@ -897,7 +898,7 @@ An example of induction motor drive with closed loop variable speed controller.
             1.414)
         "Voltage source"
         annotation (Placement(transformation(extent={{-20,20},{0,40}})));
-      SquirrelCage motDri
+      InductionMotors.SquirrelCage motDri
         annotation (Placement(transformation(extent={{-20,-20},{0,0}})));
     equation
      Ns = (120*sou.f)/motDri.P;
@@ -924,10 +925,9 @@ An example of induction motor drive with closed loop variable speed controller.
 An example of induction motor start up sequence.
 </html>"));
     end SquirrelCageStartUp;
-
   end Examples;
 
-  package BaseClasses "Baseclasses for the induction motor model"
+  package BaseClasses
     model StatorCurrent_d "d-axis stator current calculation block"
       extends Modelica.Blocks.Icons.Block;
        parameter Real Lr;
@@ -1235,14 +1235,14 @@ An example of induction motor start up sequence.
             transformation(extent={{-20,-20},{20,20}}, origin={160,-100}),
                                                          iconTransformation(extent={{140,
                 -120},{180,-80}})));
-      RotorCurrent_q i_qr_block(
+      InductionMotors.BaseClasses.RotorCurrent_q i_qr_block(
         final Lr=Lr,
         final Rr=Rr,
         final Lm=Lm) annotation (Placement(transformation(extent={{-10,-10},{10,
                 10}}, origin={70,-40})));
       Modelica.Blocks.Continuous.Integrator int_qr annotation (Placement(
             transformation(extent={{-10,-10},{10,10}}, origin={110,-40})));
-      RotorCurrent_d i_dr_block(
+      InductionMotors.BaseClasses.RotorCurrent_d i_dr_block(
         final Lr=Lr,
         final Rr=Rr,
         final Lm=Lm) annotation (Placement(transformation(extent={{-10,-10},{10,
@@ -1251,7 +1251,7 @@ An example of induction motor start up sequence.
             transformation(extent={{-10,-10},{10,10}}, origin={110,-100})));
       Modelica.Blocks.Sources.Constant v_dr(k=0)
         annotation (Placement(transformation(extent={{-10,-10},{10,10}}, origin={-70,-76})));
-      StatorCurrent_q i_qs_block(
+      InductionMotors.BaseClasses.StatorCurrent_q i_qs_block(
         final Lr=Lr,
         final Ls=Ls,
         final Rr=Rr,
@@ -1260,7 +1260,7 @@ An example of induction motor start up sequence.
                 10}}, origin={70,90})));
       Modelica.Blocks.Continuous.Integrator int_qs annotation (Placement(
             transformation(extent={{-10,-10},{10,10}}, origin={110,90})));
-      StatorCurrent_d i_ds_block(
+      InductionMotors.BaseClasses.StatorCurrent_d i_ds_block(
         final Lr=Lr,
         final Ls=Ls,
         final Rr=Rr,
@@ -1450,24 +1450,23 @@ An example of induction motor start up sequence.
           Placement(transformation(extent={{-20,-20},{20,20}}, origin={100,0}),
             iconTransformation(extent={{80,-20},{120,20}})));
 
-      MotorModel1 motMod(
+      InductionMotors.BaseClasses.MotorModel1 motMod(
         final Lr=Lr,
         final Ls=Ls,
         final Rr=Rr,
         final Lm=Lm,
         final Rs=Rs) annotation (Placement(transformation(extent={{-10,-10},{10,
                 10}}, origin={12,0})));
-      TorqueBlock torBlo(
+      InductionMotors.BaseClasses.TorqueBlock torBlo(
         final P=P,
         final Lm=Lm,
         final J=J) annotation (Placement(transformation(extent={{-10,-10},{10,
-                10}},
-              origin={48,0})));
-      VoltageConversion volCon
-        "Obtain the stator voltage values in q-axis and d-axis"
-        annotation (Placement(transformation(extent={{-10,-10},{10,10}}, origin={-38,50})));
+                10}}, origin={48,0})));
+      InductionMotors.BaseClasses.VoltageConversion volCon
+        "Obtain the stator voltage values in q-axis and d-axis" annotation (
+          Placement(transformation(extent={{-10,-10},{10,10}}, origin={-38,50})));
 
-      FrequencyConversion frequencyConversion
+      InductionMotors.BaseClasses.FrequencyConversion frequencyConversion
         annotation (Placement(transformation(extent={{-48,-10},{-28,10}})));
     equation
       connect(volCon.v_qs, motMod.v_qs) annotation (Line(points={{-26.1,56.1},{
@@ -1540,7 +1539,8 @@ First implementation.
         Diagram(coordinateSystem(extent={{-60,-60},{80,80}})));
     end MotorMachineInterface;
 
-    block VoltageConversion "Convert the stator voltage from its root mean square (RMS) value into q-axis and d-axis voltages"
+    block VoltageConversion
+      "Convert the stator voltage from its root mean square (RMS) value into q-axis and d-axis voltages"
       extends Modelica.Blocks.Icons.Block;
       Modelica.Blocks.Interfaces.RealInput V_rms annotation (Placement(transformation(
               extent={{-140,-20},{-100,20}}),
@@ -1561,23 +1561,6 @@ First implementation.
        // Icon(coordinateSystem(preserveAspectRatio=false)),
        // Diagram(coordinateSystem(preserveAspectRatio=false)));
     end VoltageConversion;
-
-    block FrequencyConversion
-      "Convert the frequency from Hertz to radians per second"
-       extends Modelica.Blocks.Icons.Block;
-        Modelica.Blocks.Interfaces.RealInput f "Value in hertz" annotation (Placement(transformation(
-              extent={{-140,-20},{-100,20}}),
-                                            iconTransformation(extent={{-140,-20},{-100,
-                20}})));
-      Modelica.Blocks.Interfaces.RealOutput omega "Value in radian per second" annotation (Placement(transformation(
-              extent={{100,-20},{138,18}}),
-                                          iconTransformation(extent={{100,-20},
-                {138,18}})));
-
-    algorithm
-      omega := 2*Modelica.Constants.pi*f;
-
-    end FrequencyConversion;
 
     block SimVFD
         extends Modelica.Blocks.Icons.Block;
@@ -1639,11 +1622,11 @@ First implementation.
       connect(gain.y, Freq_out)
         annotation (Line(points={{81,40},{118,40}}, color={0,0,127}));
      // annotation (
-     //   Icon(coordinateSystem(preserveAspectRatio=false, extent={{-100,-100},
-     //           {100,100}})),
-     //   Diagram(coordinateSystem(preserveAspectRatio=false, extent={{-100,
-     //           -100},{100,100}})),
-     //   uses(Modelica(version="4.0.0")));
+        //Icon(coordinateSystem(preserveAspectRatio=false, extent={{-100,-100},
+         //       {100,100}})),
+       // Diagram(coordinateSystem(preserveAspectRatio=false, extent={{-100,
+         //       -100},{100,100}})),
+       // uses(Modelica(version="4.0.0")));
     end SimVFD;
 
     model MotorModel1
@@ -1685,14 +1668,14 @@ First implementation.
             transformation(extent={{-20,-20},{20,20}}, origin={160,-100}),
                                                          iconTransformation(extent={{140,
                 -120},{180,-80}})));
-      RotorCurrent_q i_qr_block(
+      InductionMotors.BaseClasses.RotorCurrent_q i_qr_block(
         final Lr=Lr,
         final Rr=Rr,
         final Lm=Lm) annotation (Placement(transformation(extent={{-10,-10},{10,
                 10}}, origin={20,-40})));
       Modelica.Blocks.Continuous.Integrator int_qr annotation (Placement(
             transformation(extent={{-10,-10},{10,10}}, origin={60,-40})));
-      RotorCurrent_d i_dr_block(
+      InductionMotors.BaseClasses.RotorCurrent_d i_dr_block(
         final Lr=Lr,
         final Rr=Rr,
         final Lm=Lm) annotation (Placement(transformation(extent={{-10,-10},{10,
@@ -1701,7 +1684,7 @@ First implementation.
             transformation(extent={{-10,-10},{10,10}}, origin={60,-100})));
       Modelica.Blocks.Sources.Constant v_dr(k=0)
         annotation (Placement(transformation(extent={{-10,-10},{10,10}}, origin={-108,-70})));
-      StatorCurrent_q i_qs_block(
+      InductionMotors.BaseClasses.StatorCurrent_q i_qs_block(
         final Lr=Lr,
         final Ls=Ls,
         final Rr=Rr,
@@ -1710,7 +1693,7 @@ First implementation.
                 10}}, origin={20,90})));
       Modelica.Blocks.Continuous.Integrator int_qs annotation (Placement(
             transformation(extent={{-10,-10},{10,10}}, origin={60,90})));
-      StatorCurrent_d i_ds_block(
+      InductionMotors.BaseClasses.StatorCurrent_d i_ds_block(
         final Lr=Lr,
         final Ls=Ls,
         final Rr=Rr,
@@ -1831,11 +1814,27 @@ First implementation.
 ")}),   Diagram(coordinateSystem(preserveAspectRatio=false, extent={{-140,-140},{140,
                 140}})));
     end MotorModel1;
+
+    block FrequencyConversion
+      "Convert the frequency from Hertz to radians per second"
+       extends Modelica.Blocks.Icons.Block;
+        Modelica.Blocks.Interfaces.RealInput f "Value in hertz" annotation (Placement(transformation(
+              extent={{-140,-20},{-100,20}}),
+                                            iconTransformation(extent={{-140,-20},{-100,
+                20}})));
+      Modelica.Blocks.Interfaces.RealOutput omega "Value in radian per second" annotation (Placement(transformation(
+              extent={{100,-20},{138,18}}),
+                                          iconTransformation(extent={{100,-20},
+                {138,18}})));
+
+    algorithm
+      omega := 2*Modelica.Constants.pi*f;
+
+    end FrequencyConversion;
   end BaseClasses;
 
-  package Data "Package containing electrical paraemters data for Induction Motors"
-  extends Modelica.Icons.MaterialPropertiesPackage;
-
+  package Data
+    extends Modelica.Icons.MaterialPropertiesPackage;
     record Generic "Generic record of induction machine parameters"
       extends Modelica.Icons.Record;
       parameter Integer P = 4 "Number of Poles";
@@ -1854,222 +1853,197 @@ First implementation.
     record IM_5HP_400V_50Hz =
       Buildings.Electrical.AC.ThreePhasesBalanced.Loads.MotorDrive.InductionMotors.Data.Generic
         (
-        P = 4,
-        J = 0.0131,
-        Lr = 0.178039,
-        Ls = 0.178039,
-        Lm = 0.1722,
-        Rs = 1.405,
-        Rr = 1.395,
-        Freq = 50,
-        Voltage = 400) "Generic 5hp motor operating at 400V and 50Hz"
+        P=4,
+        J=0.0131,
+        Lr=0.178039,
+        Ls=0.178039,
+        Lm=0.1722,
+        Rs=1.405,
+        Rr=1.395,
+        Freq=50,
+        Voltage=400)   "Generic 5hp motor operating at 400V and 50Hz"
       annotation (Icon(coordinateSystem(preserveAspectRatio=false)), Diagram(
       coordinateSystem(preserveAspectRatio=false)));
-
     record IM_10HP_400V_50Hz =
       Buildings.Electrical.AC.ThreePhasesBalanced.Loads.MotorDrive.InductionMotors.Data.Generic
-        ( P = 4,
-          J = 0.0343 "Moment of Inertia [kg/m2]",
-          Lr = 0.127145 "Rotor Inductance [H]",
-          Ls = 0.127145 "Stator Inductance [H]",
-          Lm = 0.1241 "Mutual Inductance [H]",
-          Rs = 0.7384 "Stator Resistance [ohm]",
-          Rr = 0.7402 "Rotor Resistance [ohm]",
-          Freq = 50 "Standard Frequency [Hz]",
-          Voltage = 400) "Generic 10hp motor operating at 400V and 50Hz"
+        (
+        P=4,
+        J=0.0343 "Moment of Inertia [kg/m2]",
+        Lr=0.127145 "Rotor Inductance [H]",
+        Ls=0.127145 "Stator Inductance [H]",
+        Lm=0.1241 "Mutual Inductance [H]",
+        Rs=0.7384 "Stator Resistance [ohm]",
+        Rr=0.7402 "Rotor Resistance [ohm]",
+        Freq=50 "Standard Frequency [Hz]",
+        Voltage=400)     "Generic 10hp motor operating at 400V and 50Hz"
       annotation (Icon(coordinateSystem(preserveAspectRatio=false)), Diagram(coordinateSystem(preserveAspectRatio=false)));
-
     record IM_20HP_400V_50Hz =
       Buildings.Electrical.AC.ThreePhasesBalanced.Loads.MotorDrive.InductionMotors.Data.Generic
         (
-        P = 4,
-        J = 0.102,
-        Lr = 0.065181,
-        Ls = 0.065181,
-        Lm = 0.06419,
-        Rs = 0.2147,
-        Rr = 0.2205,
-        Freq = 50,
-        Voltage = 400) "Generic 20hp motor operating at 400V and 50Hz"
+        P=4,
+        J=0.102,
+        Lr=0.065181,
+        Ls=0.065181,
+        Lm=0.06419,
+        Rs=0.2147,
+        Rr=0.2205,
+        Freq=50,
+        Voltage=400)   "Generic 20hp motor operating at 400V and 50Hz"
       annotation (Icon(coordinateSystem(preserveAspectRatio=false)), Diagram(
       coordinateSystem(preserveFARAspectio=false)));
-
     record IM_50HP_400V_50Hz =
       Buildings.Electrical.AC.ThreePhasesBalanced.Loads.MotorDrive.InductionMotors.Data.Generic
         (
-        P = 4,
-        J = 0.37,
-        Lr = 0.027834,
-        Ls = 0.027834,
-        Lm = 0.02711,
-        Rs = 0.08233,
-        Rr = 0.0503,
-        Freq = 50,
-        Voltage = 400) "Generic 50hp motor operating at 400V and 50Hz"
+        P=4,
+        J=0.37,
+        Lr=0.027834,
+        Ls=0.027834,
+        Lm=0.02711,
+        Rs=0.08233,
+        Rr=0.0503,
+        Freq=50,
+        Voltage=400)   "Generic 50hp motor operating at 400V and 50Hz"
       annotation (Icon(coordinateSystem(preserveAspectRatio=false)), Diagram(
       coordinateSystem(preserveAspectRatio=false)));
-
     record IM_100HP_400V_50Hz =
       Buildings.Electrical.AC.ThreePhasesBalanced.Loads.MotorDrive.InductionMotors.Data.Generic
         (
-        P = 4,
-        J = 1.25,
-        Lr = 0.015435,
-        Ls = 0.015435,
-        Lm = 0.0151,
-        Rs = 0.03552,
-        Rr = 0.02092,
-        Freq = 50,
-        Voltage = 400) "Generic 100hp motor operating at 400V and 50Hz"
+        P=4,
+        J=1.25,
+        Lr=0.015435,
+        Ls=0.015435,
+        Lm=0.0151,
+        Rs=0.03552,
+        Rr=0.02092,
+        Freq=50,
+        Voltage=400)   "Generic 100hp motor operating at 400V and 50Hz"
       annotation (Icon(coordinateSystem(preserveAspectRatio=false)), Diagram(
       coordinateMenuSystem(preserveAspectRatio=false)));
-
     record IM_150HP_400V_50Hz =
       Buildings.Electrical.AC.ThreePhasesBalanced.Loads.MotorDrive.InductionMotors.Data.Generic
         (
-        P = 4,
-        J = 2.3,
-        Lr = 0.010606,
-        Ls = 0.010606,
-        Lm = 0.01038,
-        Rs = 0.02155,
-        Rr = 0.01231,
-        Freq = 50,
-        Voltage = 400) "Generic 150hp motor operating at 400V and 50Hz"
+        P=4,
+        J=2.3,
+        Lr=0.010606,
+        Ls=0.010606,
+        Lm=0.01038,
+        Rs=0.02155,
+        Rr=0.01231,
+        Freq=50,
+        Voltage=400)   "Generic 150hp motor operating at 400V and 50Hz"
       annotation (Icon(coordinateSystem(preserveAspectRatio=false)), Diagram(
       coordinateSystem(preserveAspectRatio=false)));
-
     record IM_200HP_400V_50Hz =
       Buildings.Electrical.AC.ThreePhasesBalanced.Loads.MotorDrive.InductionMotors.Data.Generic
         (
-        P = 4,
-        J = 2.9,
-        Lr = 0.007842,
-        Ls = 0.007842,
-        Lm = 0.00769,
-        Rs = 0.01379,
-        Rr = 0.007728,
-        Freq = 50,
-        Voltage = 400) "Generic 200hp motor operating at 400V and 50Hz"
+        P=4,
+        J=2.9,
+        Lr=0.007842,
+        Ls=0.007842,
+        Lm=0.00769,
+        Rs=0.01379,
+        Rr=0.007728,
+        Freq=50,
+        Voltage=400)   "Generic 200hp motor operating at 400V and 50Hz"
       annotation (Icon(coordinateSystem(preserveAspectRatio=false)), Diagram(
       coordinateSystem(preserveAspectRatio=false)));
-
     record IM_5HP_460V_60Hz =
       Buildings.Electrical.AC.ThreePhasesBalanced.Loads.MotorDrive.InductionMotors.Data.Generic
         (
-        P = 4,
-        J = 0.02,
-        Lr = 0.209674,
-        Ls = 0.209674,
-        Lm = 0.2037,
-        Rs = 1.115,
-        Rr = 1.083,
-        Freq = 60,
-        Voltage = 460) "Generic 5hp motor operating at 460V and 60Hz"
+        P=4,
+        J=0.02,
+        Lr=0.209674,
+        Ls=0.209674,
+        Lm=0.2037,
+        Rs=1.115,
+        Rr=1.083,
+        Freq=60,
+        Voltage=460)   "Generic 5hp motor operating at 460V and 60Hz"
       annotation (Icon(coordinateSystem(preserveAspectRatio=false)), Diagram(
       coordinateSystem(preserveAspectRatio=false)));
-
     record IM_10HP_460V_60Hz =
       Buildings.Electrical.AC.ThreePhasesBalanced.Loads.MotorDrive.InductionMotors.Data.Generic
         (
-        P = 4,
-        J = 0.05,
-        Lr = 0.152752,
-        Ls = 0.152752,
-        Lm = 0.1486,
-        Rs = 0.6837,
-        Rr = 0.451,
-        Freq = 60,
-        Voltage = 460) "Generic 10hp motor operating at 460V and 60Hz"
+        P=4,
+        J=0.05,
+        Lr=0.152752,
+        Ls=0.152752,
+        Lm=0.1486,
+        Rs=0.6837,
+        Rr=0.451,
+        Freq=60,
+        Voltage=460)   "Generic 10hp motor operating at 460V and 60Hz"
       annotation (Icon(coordinateSystem(preserveAspectRatio=false)), Diagram(
       coordinateSystem(preserveAspectRatio=false)));
-
     record IM_20HP_460V_60Hz =
       Buildings.Electrical.AC.ThreePhasesBalanced.Loads.MotorDrive.InductionMotors.Data.Generic
         (
-        P = 4,
-        J = 0.1,
-        Lr = 0.078331,
-        Ls = 0.078331,
-        Lm = 0.07614,
-        Rs = 0.2761,
-        Rr = 0.1645,
-        Freq = 60,
-        Voltage = 460) "Generic 20hp motor operating at 460V and 60Hz"
+        P=4,
+        J=0.1,
+        Lr=0.078331,
+        Ls=0.078331,
+        Lm=0.07614,
+        Rs=0.2761,
+        Rr=0.1645,
+        Freq=60,
+        Voltage=460)   "Generic 20hp motor operating at 460V and 60Hz"
       annotation (Icon(coordinateSystem(preserveAspectRatio=false)), Diagram(
       coordinateSystem(preserveAspectRatio=false)));
-
     record IM_50HP_460V_60Hz =
       Buildings.Electrical.AC.ThreePhasesBalanced.Loads.MotorDrive.InductionMotors.Data.Generic
         (
-        P = 4,
-        J = 0.4,
-        Lr = 0.031257,
-        Ls = 0.031257,
-        Lm = 0.03039,
-        Rs = 0.09961,
-        Rr = 0.05837,
-        Freq = 60,
-        Voltage = 460) "Generic 50hp motor operating at 460V and 60Hz"
+        P=4,
+        J=0.4,
+        Lr=0.031257,
+        Ls=0.031257,
+        Lm=0.03039,
+        Rs=0.09961,
+        Rr=0.05837,
+        Freq=60,
+        Voltage=460)   "Generic 50hp motor operating at 460V and 60Hz"
       annotation (Icon(coordinateSystem(preserveAspectRatio=false)), Diagram(
       coordinateSystem(preserveAspectRatio=false)));
-
     record IM_100HP_460V_60Hz =
       Buildings.Electrical.AC.ThreePhasesBalanced.Loads.MotorDrive.InductionMotors.Data.Generic
         (
-        P = 4,
-        J = 1.3,
-        Lr = 0.017029,
-        Ls = 0.017029,
-        Lm = 0.01664,
-        Rs = 0.03957,
-        Rr = 0.02215,
-        Freq = 60,
-        Voltage = 460) "Generic 100hp motor operating at 460V and 60Hz"
+        P=4,
+        J=1.3,
+        Lr=0.017029,
+        Ls=0.017029,
+        Lm=0.01664,
+        Rs=0.03957,
+        Rr=0.02215,
+        Freq=60,
+        Voltage=460)   "Generic 100hp motor operating at 460V and 60Hz"
       annotation (Icon(coordinateSystem(preserveAspectRatio=false)), Diagram(
       coordinateSystem(preserveAspectRatio=false)));
-
     record IM_150HP_460V_60Hz =
       Buildings.Electrical.AC.ThreePhasesBalanced.Loads.MotorDrive.InductionMotors.Data.Generic
         (
-        P = 4,
-        J = 2,
-        Lr = 0.011233,
-        Ls = 0.011233,
-        Lm = 0.01095,
-        Rs = 0.0302,
-        Rr = 0.01721,
-        Freq = 60,
-        Voltage = 460) "Generic 150hp motor operating at 460V and 60Hz"
+        P=4,
+        J=2,
+        Lr=0.011233,
+        Ls=0.011233,
+        Lm=0.01095,
+        Rs=0.0302,
+        Rr=0.01721,
+        Freq=60,
+        Voltage=460)   "Generic 150hp motor operating at 460V and 60Hz"
       annotation (Icon(coordinateSystem(preserveAspectRatio=false)), Diagram(
       coordinateSystem(preserveAspectRatio=false)));
-
     record IM_200HP_460V_60Hz =
       Buildings.Electrical.AC.ThreePhasesBalanced.Loads.MotorDrive.InductionMotors.Data.Generic
         (
-        P = 4,
-        J = 2.6,
-        Lr = 0.009605,
-        Ls = 0.009605,
-        Lm = 0.009415,
-        Rs = 0.01818,
-        Rr = 0.009956,
-        Freq = 60,
-        Voltage = 460) "Generic 200hp motor operating at 460V and 60Hz"
+        P=4,
+        J=2.6,
+        Lr=0.009605,
+        Ls=0.009605,
+        Lm=0.009415,
+        Rs=0.01818,
+        Rr=0.009956,
+        Freq=60,
+        Voltage=460)   "Generic 200hp motor operating at 460V and 60Hz"
       annotation (Icon(coordinateSystem(preserveAspectRatio=false)), Diagram(
       coordinateSystem(preserveAspectRatio=false)));
-    annotation (Documentation(info="<html>
-<p><span style=\"font-family: Arial;\">This package contains predefined datasets of Induction Motor model.</span></p>
-</html>"));
   end Data;
-  annotation (preferredView="info", Documentation(info="<html>
-<p>
-This package contains Induction Motor model, examples and database of general models.
-</p>
-
-</html>", revisions="<html>
-<ul>
-<li>May 07, 2024, by Viswanathan Ganesh and Zhanwei He:<br>First Implementation. </li>
-</ul>
-</html>"));
 end InductionMotors;
