@@ -1,5 +1,5 @@
 within Buildings.Electrical.AC.ThreePhasesBalanced.Loads.MotorDrive.ThermoFluid.BaseClasses;
-function Power   "Function to compute Mechancial Power"
+function Power   "Function to compute Mechanical Power"
 
 input Real tau "Torque";
 input Real spe "Rotational Speed";
@@ -13,7 +13,8 @@ algorithm
 annotation (preferredView="info", Documentation(info="<html>
 <p>
 This function contains script to compute power consumption for the models in
-<a href=\"modelica://Buildings.Electrical.AC.ThreePhasesBalanced.Loads.MotorDrive.ThermoFluid\">Buildings.Electrical.AC.ThreePhasesBalanced.Loads.MotorDrive.ThermoFluid</a>.
+<a href=\"modelica://Buildings.Electrical.AC.ThreePhasesBalanced.Loads.MotorDrive.ThermoFluid\">
+Buildings.Electrical.AC.ThreePhasesBalanced.Loads.MotorDrive.ThermoFluid</a>.
 </p>
 </html>"));
 end Power;

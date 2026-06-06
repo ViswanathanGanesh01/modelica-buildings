@@ -60,50 +60,40 @@ model HeatPump "Heat pump with mechanical interface"
   parameter Modelica.Units.SI.TemperatureDifference TAppEva_nominal(min=0) = if cp2_default < 1500 then 5 else 2
     "Temperature difference between refrigerant and working fluid outlet in evaporator"
     annotation (Dialog(group="Efficiency"));
+  parameter Boolean from_dp1=false
+    "= true, use m_flow = f(dp) else dp = f(m_flow)"
+    annotation (Dialog(tab="Flow resistance", group="Condenser"));
+  parameter Boolean linearizeFlowResistance1=false
+    "= true, use linear relation between m_flow and dp for any flow rate"
+    annotation (Dialog(tab="Flow resistance", group="Condenser"));
+  parameter Real deltaM1=0.1
+    "Fraction of nominal flow rate where flow transitions to laminar"
+    annotation (Dialog(tab="Flow resistance", group="Condenser"));
+  parameter Boolean from_dp2=false
+    "= true, use m_flow = f(dp) else dp = f(m_flow)"
+    annotation (Dialog(tab="Flow resistance", group="Evaporator"));
+  parameter Boolean linearizeFlowResistance2=false
+    "= true, use linear relation between m_flow and dp for any flow rate"
+    annotation (Dialog(tab="Flow resistance", group="Evaporator"));
+  parameter Real deltaM2=0.1
+    "Fraction of nominal flow rate where flow transitions to laminar"
+    annotation (Dialog(tab="Flow resistance", group="Evaporator"));
+  parameter Modelica.Units.SI.Time tau1=60
+    "Time constant at nominal flow rate (used if energyDynamics1 <> Modelica.Fluid.Types.Dynamics.SteadyState)"
+    annotation (Dialog(tab="Dynamics", group="Condenser"));
+  parameter Modelica.Units.SI.Temperature T1_start=Medium1.T_default
+    "Initial or guess value of set point"
+    annotation (Dialog(tab="Dynamics", group="Condenser"));
+  parameter Modelica.Units.SI.Time tau2=60
+    "Time constant at nominal flow rate (used if energyDynamics2 <> Modelica.Fluid.Types.Dynamics.SteadyState)"
+    annotation (Dialog(tab="Dynamics", group="Evaporator"));
+  parameter Modelica.Units.SI.Temperature T2_start=Medium2.T_default
+    "Initial or guess value of set point"
+    annotation (Dialog(tab="Dynamics", group="Evaporator"));
+  parameter Modelica.Fluid.Types.Dynamics energyDynamics=Modelica.Fluid.Types.Dynamics.SteadyState
+    "Type of energy balance: dynamic (3 initialization options) or steady state"
+    annotation (Dialog(tab="Dynamics", group="Evaporator and condenser"));
 
-  Modelica.Units.SI.Torque tauHea "Heat pump torque";
-
-  Modelica.Mechanics.Rotational.Interfaces.Flange_b shaft "Mechanical connector"
-    annotation (Placement(transformation(extent={{-10,90},{10,110}})));
-  Buildings.Fluid.HeatPumps.Carnot_y heaPum(
-    redeclare final package Medium1 = Medium1,
-    redeclare final package Medium2 = Medium2,
-    final m1_flow_nominal=m1_flow_nominal,
-    final m2_flow_nominal=m2_flow_nominal,
-    final dTEva_nominal=dTEva_nominal,
-    final dTCon_nominal=dTCon_nominal,
-    final use_eta_Carnot_nominal=use_eta_Carnot_nominal,
-    final etaCarnot_nominal=etaCarnot_nominal,
-    final a=a,
-    final dp1_nominal=dp1_nominal,
-    final dp2_nominal=dp2_nominal,
-    final TAppCon_nominal=TAppCon_nominal,
-    final TAppEva_nominal=TAppEva_nominal,
-    final P_nominal=P_nominal) "Heat pump"
-    annotation (Placement(transformation(extent={{-10,-10},{10,10}})));
-  Modelica.Mechanics.Rotational.Components.Inertia ine(final J=loaIne,
-    phi(fixed=true, start=0), w(fixed=true, start=0)) "Heat pump inertia"
-    annotation (Placement(transformation(
-        extent={{10,-10},{-10,10}},
-        rotation=-90,
-        origin={0,80})));
-  Modelica.Mechanics.Rotational.Sources.Torque tor "Torque source"
-    annotation (Placement(transformation(extent={{-40,60},{-20,80}})));
-  Modelica.Blocks.Sources.RealExpression tauSor(final y=-tauHea) "Heat pump torque"
-    annotation (Placement(transformation(
-        extent={{10,10},{-10,-10}},
-        rotation=180,
-        origin={-70,90})));
-  Modelica.Mechanics.Rotational.Sensors.SpeedSensor spe "Rotation speed in rad/s"
-    annotation (Placement(transformation(extent={{10,50},{30,70}})));
-  Modelica.Blocks.Math.UnitConversions.To_rpm to_rpm "Unit conversion"
-    annotation (Placement(transformation(extent={{10,30},{-10,50}})));
-  Modelica.Blocks.Math.MultiProduct multiProduct(final nu=3)
-    "Cubic calculation"
-    annotation (Placement(transformation(extent={{-68,34},{-80,46}})));
-  Modelica.Blocks.Math.Gain gaiSpe(final k=1/Nrpm_nominal)
-    "Speed normalization"
-    annotation (Placement(transformation(extent={{-20,30},{-40,50}})));
   Modelica.Blocks.Interfaces.RealOutput QCon_flow(
     final quantity="HeatFlowRate",
     final unit="W")
@@ -122,6 +112,71 @@ model HeatPump "Heat pump with mechanical interface"
     "Actual cooling heat flow rate removed from fluid 2"
     annotation (Placement(transformation(extent={{100,-100},{120,-80}}),
         iconTransformation(extent={{100,-100},{120,-80}})));
+
+  Modelica.Units.SI.Torque tauHea "Heat pump torque";
+
+  Modelica.Mechanics.Rotational.Interfaces.Flange_b shaft "Mechanical connector"
+    annotation (Placement(transformation(extent={{-10,90},{10,110}})));
+  Buildings.Fluid.HeatPumps.Carnot_y heaPum(
+    redeclare final package Medium1 = Medium1,
+    redeclare final package Medium2 = Medium2,
+    final allowFlowReversal1=allowFlowReversal1,
+    final allowFlowReversal2=allowFlowReversal2,
+    final m1_flow_nominal=m1_flow_nominal,
+    final m2_flow_nominal=m2_flow_nominal,
+    final m1_flow_small=m1_flow_small,
+    final m2_flow_small=m2_flow_small,
+    final show_T=show_T,
+    final dTEva_nominal=dTEva_nominal,
+    final dTCon_nominal=dTCon_nominal,
+    final use_eta_Carnot_nominal=use_eta_Carnot_nominal,
+    final COP_nominal=COP_nominal,
+    final TCon_nominal=TCon_nominal,
+    final TEva_nominal=TEva_nominal,
+    final etaCarnot_nominal=etaCarnot_nominal,
+    final a=a,
+    final dp1_nominal=dp1_nominal,
+    final dp2_nominal=dp2_nominal,
+    final TAppCon_nominal=TAppCon_nominal,
+    final TAppEva_nominal=TAppEva_nominal,
+    final from_dp1=from_dp1,
+    final from_dp2=from_dp2,
+    final linearizeFlowResistance1=linearizeFlowResistance1,
+    final linearizeFlowResistance2=linearizeFlowResistance2,
+    final deltaM1=deltaM1,
+    final deltaM2=deltaM2,
+    final tau1=tau1,
+    final tau2=tau2,
+    final T1_start=T1_start,
+    final T2_start=T2_start,
+    final energyDynamics=energyDynamics,
+    final P_nominal=P_nominal) "Heat pump"
+    annotation (Placement(transformation(extent={{-10,-10},{10,10}})));
+  Modelica.Mechanics.Rotational.Components.Inertia ine(
+    final J=loaIne,
+    phi(fixed=true, start=0),
+    w(fixed=true, start=0))
+    "Heat pump inertia"
+    annotation (Placement(transformation(extent={{10,-10},{-10,10}},
+        rotation=-90, origin={0,80})));
+  Modelica.Mechanics.Rotational.Sources.Torque tor "Torque source"
+    annotation (Placement(transformation(extent={{-40,60},{-20,80}})));
+  Modelica.Blocks.Sources.RealExpression tauSor(
+    final y=-tauHea)
+    "Heat pump torque"
+    annotation (Placement(transformation(extent={{10,10},{-10,-10}},
+        rotation=180, origin={-70,90})));
+  Modelica.Mechanics.Rotational.Sensors.SpeedSensor spe
+    "Rotation speed in rad/s"
+    annotation (Placement(transformation(extent={{30,50},{50,70}})));
+  Modelica.Blocks.Math.UnitConversions.To_rpm to_rpm "Unit conversion"
+    annotation (Placement(transformation(extent={{40,20},{20,40}})));
+  Modelica.Blocks.Math.MultiProduct speCub(nu=3) "Cubic calculation"
+    annotation (Placement(transformation(extent={{-40,20},{-60,40}})));
+  Modelica.Blocks.Math.Gain gaiSpe(
+    final k=1/Nrpm_nominal)
+    "Speed normalization"
+    annotation (Placement(transformation(extent={{0,20},{-20,40}})));
 
 initial equation
   assert(QEva_flow_nominal < 0, "Parameter QEva_flow_nominal must be negative.");
@@ -153,40 +208,41 @@ protected
 equation
   heaPum.P = Buildings.Electrical.AC.ThreePhasesBalanced.Loads.MotorDrive.ThermoFluid.BaseClasses.Power(tauHea,spe.w,1e-6,1e-8);
 
-  connect(port_a1, heaPum.port_a1) annotation (Line(points={{-100,60},{-60,60},
-          {-60,6},{-10,6}}, color={0,127,255}));
-  connect(port_b1, heaPum.port_b1) annotation (Line(points={{100,60},{60,60},
-          {60,6},{10,6}}, color={0,127,255}));
-  connect(port_b2, heaPum.port_b2) annotation (Line(points={{-100,-60},{-60,-60},
-          {-60,-6},{-10,-6}}, color={0,127,255}));
-  connect(port_a2, heaPum.port_a2) annotation (Line(points={{100,-60},{60,-60},
-          {60,-6},{10,-6}}, color={0,127,255}));
+  connect(port_a1, heaPum.port_a1) annotation (Line(points={{-100,60},{-80,60},{
+          -80,6},{-10,6}}, color={0,127,255}));
+  connect(port_b1, heaPum.port_b1) annotation (Line(points={{100,60},{80,60},{80,
+          6},{10,6}}, color={0,127,255}));
+  connect(port_b2, heaPum.port_b2) annotation (Line(points={{-100,-60},{-80,-60},
+          {-80,-6},{-10,-6}}, color={0,127,255}));
+  connect(port_a2, heaPum.port_a2) annotation (Line(points={{100,-60},{80,-60},{
+          80,-6},{10,-6}},  color={0,127,255}));
   connect(tauSor.y, tor.tau) annotation (Line(points={{-59,90},{-50,90},{-50,70},
           {-42,70}}, color={0,0,127}));
-  connect(ine.flange_a,spe. flange) annotation (Line(points={{-1.77636e-15,70},
-          {-1.77636e-15,60},{10,60}}, color={0,0,0}));
+  connect(ine.flange_a,spe. flange) annotation (Line(points={{0,70},{0,60},{30,60}},
+          color={0,0,0}));
   connect(ine.flange_a, tor.flange) annotation (Line(points={{-1.77636e-15,70},
           {-20,70}}, color={0,0,0}));
-  connect(spe.w,to_rpm. u) annotation (Line(points={{31,60},{40,60},{40,40},
-          {12,40}}, color={0,0,127}));
-  connect(to_rpm.y, gaiSpe.u) annotation (Line(points={{-11,40},{-18,40}},
+  connect(spe.w,to_rpm. u) annotation (Line(points={{51,60},{60,60},{60,30},{42,
+          30}}, color={0,0,127}));
+  connect(to_rpm.y, gaiSpe.u) annotation (Line(points={{19,30},{2,30}},
           color={0,0,127}));
   connect(shaft, ine.flange_b) annotation (Line(points={{0,100},{0,90}},
           color={0,0,0}));
-  connect(multiProduct.y, heaPum.y) annotation (Line(points={{-81.02,40},{-90,40},
-          {-90,9},{-12,9}}, color={0,0,127}));
-  connect(gaiSpe.y, multiProduct.u[1]) annotation (Line(points={{-41,40},{-50,40},
-          {-50,38.6},{-68,38.6}}, color={0,0,127}));
-  connect(gaiSpe.y, multiProduct.u[2]) annotation (Line(points={{-41,40},{-50,40},
-          {-50,40},{-68,40}}, color={0,0,127}));
-  connect(gaiSpe.y, multiProduct.u[3]) annotation (Line(points={{-41,40},{-50,40},
-          {-50,41.4},{-68,41.4}}, color={0,0,127}));
+  connect(speCub.y, heaPum.y) annotation (Line(points={{-61.7,30},{-70,30},{-70,
+          9},{-12,9}}, color={0,0,127}));
   connect(heaPum.P, P) annotation (Line(points={{11,0},{110,0}}, color={0,0,127}));
-  connect(heaPum.QCon_flow, QCon_flow) annotation (Line(points={{11,9},{50,9},
-          {50,90},{110,90}}, color={0,0,127}));
-  connect(heaPum.QEva_flow, QEva_flow) annotation (Line(points={{11,-9},{50,-9},
-          {50,-90},{110,-90}}, color={0,0,127}));
-  annotation (Icon(coordinateSystem(preserveAspectRatio=true,
+  connect(heaPum.QCon_flow, QCon_flow) annotation (Line(points={{11,9},{70,9},{70,
+          90},{110,90}}, color={0,0,127}));
+  connect(heaPum.QEva_flow, QEva_flow) annotation (Line(points={{11,-9},{70,-9},
+          {70,-90},{110,-90}}, color={0,0,127}));
+  connect(gaiSpe.y, speCub.u[1]) annotation (Line(points={{-21,30},{-40,30},{
+          -40,27.6667}}, color={0,0,127}));
+  connect(gaiSpe.y, speCub.u[2]) annotation (Line(points={{-21,30},{-30,30},{-30,
+          30},{-40,30}}, color={0,0,127}));
+  connect(gaiSpe.y, speCub.u[3]) annotation (Line(points={{-21,30},{-40,30},{
+          -40,32.3333}}, color={0,0,127}));
+annotation (defaultComponentName = "heaPum",
+Icon(coordinateSystem(preserveAspectRatio=true,
         extent={{-100,-100},{100,100}}), graphics={
         Rectangle(
           extent={{-70,80},{70,-80}},
@@ -271,15 +327,14 @@ equation
         Line(points={{0,-70},{0,-90},{100,-90}},color={0,0,255}),
         Line(points={{62,0},{100,0}},color={0,0,255}),
         Text(extent={{70,24},{120,10}}, textString="P", textColor={0,0,127})}),
-        defaultComponentName = "hea",
-        Documentation(info="<html>
+Documentation(info="<html>
 <p>
-This model describes a heat pump with mechanical imterface and uses
+This model describes a heat pump with mechanical interface and uses
 <a href=\"modelica://Buildings.Fluid.HeatPumps.Carnot_y\">
 Buildings.Fluid.HeatPumps.Carnot_y</a>
 as a base model.The governing equation of this implementation is based on the
 relationship between the power and torque of the rotating object, which is
-represented as follow:
+represented as follows:
 </p>
 <p align=\"center\"><i>P&nbsp;=&nbsp;tau&nbsp;*&nbsp;W</i>
 </p>

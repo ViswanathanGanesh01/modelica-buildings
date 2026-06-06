@@ -1,5 +1,5 @@
 within Buildings.Electrical.AC.ThreePhasesBalanced.Loads.MotorDrive.ThermoFluid.Examples;
-model Pump "This example shows how to use the heat pump with mechanical interface"
+model Pump "This example shows how to use the pump with mechanical interface"
   extends Modelica.Icons.Example;
   package MediumW = Buildings.Media.Water;
 
@@ -22,9 +22,10 @@ model Pump "This example shows how to use the heat pump with mechanical interfac
     dp_nominal=2000) "Resistance"
     annotation (Placement(transformation(extent={{-48,-10},{-28,10}})));
   Buildings.Electrical.AC.ThreePhasesBalanced.Loads.MotorDrive.ThermoFluid.Pump pum(
+    loaIne=1,
     addPowerToMedium=false,
-    pum(energyDynamics=Modelica.Fluid.Types.Dynamics.FixedInitial),
     redeclare package Medium = MediumW,
+    Nrpm_nominal=3040,
     redeclare
       Buildings.Fluid.Movers.Data.Pumps.Wilo.VeroLine50slash150dash4slash2 per)
     "Pump"
@@ -39,7 +40,7 @@ equation
           color={0,127,255}));
   connect(torSou.flange,pum. shaft) annotation (Line(points={{-20,70},{0,70},
           {0,10}}, color={0,0,0}));
-  annotation (experiment(Tolerance=1e-6, StopTime=3600),
+  annotation (experiment(Tolerance=1e-6, StopTime=1000),
 __Dymola_Commands(file="modelica://Buildings/Resources/Scripts/Dymola/Electrical/AC/ThreePhasesBalanced/Loads/MotorDrive/ThermoFluid/Examples/Pump.mos"
         "Simulate and plot"),
         Documentation(info="<html>
@@ -49,7 +50,7 @@ Example that simulates a pump using the torque as input signal.
 </html>", revisions="<html>
 <ul>
 <li>
-March 6, 2019, by Yangyang Fu:<br/>
+October 15, 2021, by Mingzhe Liu:<br/>
 First implementation.
 </li>
 </ul>
